@@ -15,12 +15,11 @@ export async function authenticate(
     await signIn('credentials', formData)
   } catch (error) {
     if (error instanceof AuthError) {
-      switch (error.type) {
-        case 'CredentialsSignin':
-          return 'Invalid credentials.'
-        default:
-          return 'Something went wrong.'
+      // 检查 error.message 或其他可用属性
+      if (error.message.includes('CredentialsSignin')) {
+        return 'Invalid credentials.'
       }
+      return 'Something went wrong.'
     }
     throw error
   }
