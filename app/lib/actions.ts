@@ -12,12 +12,13 @@ export async function authenticate(
   formData: FormData
 ) {
   try {
+    console.log('!!! authenticate called:...', formData)
     await signIn('credentials', formData)
   } catch (error) {
     if (error instanceof AuthError) {
       // 检查 error.message 或其他可用属性
       if (error.message.includes('CredentialsSignin')) {
-        return 'Invalid credentials.'
+        return 'Authenticate: Invalid credentials.'
       }
       return 'Something went wrong.'
     }

@@ -98,11 +98,13 @@ export const siweConfig = createSIWEConfig({
   },
   verifyMessage: async ({ message, signature }: SIWEVerifyMessageArgs) => {
     try {
-      const success = await signIn('credentials', {
+      console.log('verifyMessage...')
+      const success = await signIn('siwe', {
         message,
-        redirect: false,
         signature,
-        callbackUrl: '/protected',
+        redirect: true,
+        //callbackUrl: '/protected',
+        callbackUrl: '/dashboard',
       })
 
       return Boolean(success?.ok)
