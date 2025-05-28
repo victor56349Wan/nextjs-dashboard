@@ -1,62 +1,126 @@
-import { request } from 'http'
 import type { NextAuthConfig } from 'next-auth'
+
+// 添加时间戳日志辅助函数
+function logWithTimestamp(message: string, ...args: any[]) {
+  const timestamp = new Date().toISOString()
+  console.log(`[${timestamp}] ${message}`, ...args)
+}
 
 export const authConfig = {
   pages: {
     signIn: '/login',
   },
+  debug: true, // 添加调试模式
   session: {
     strategy: 'jwt',
   },
-  debug: true,
+
   callbacks: {
-    authorized({ auth, request: { nextUrl } }) {
-      const isLoggedIn = !!auth?.user
-      console.log(
-        `callback authorized, auth:${auth}, nextUrl: ${nextUrl.toString()}, isLogedin: ${isLoggedIn}`
+    // !!!! auth para is the object returned by session() callback running in middleware context
+    async authorized({ auth, request }) {
+      // 增强用户状态检查
+      const hasValidSession = !!(
+        auth?.expires &&
+        new Date(auth.expires) > new Date() &&
+        auth?.user
+      )
+      const { nextUrl } = request
+
+      logWithTimestamp('Callback authorized, Input:\n\tauth:', auth)
+
+      logWithTimestamp(
+        'Callback authorized -',
+        '\n\tauth:',
+        JSON.stringify(
+          {
+            ...auth,
+            //user: auth?.user || {},
+            user: auth?.user,
+            session: auth?.session,
+          },
+          null,
+          2
+        ),
+        '\n\thasValidSession:',
+        hasValidSession,
+        '\n\tnextUrl:',
+        nextUrl.toString()
       )
 
       const isOnDashboard = nextUrl.pathname.startsWith('/dashboard')
       if (isOnDashboard) {
-        if (isLoggedIn) return true
-        return false // Redirect unauthenticated users to login page
-      } else if (isLoggedIn) {
-        return Response.redirect(new URL('/dashboard', nextUrl))
+        return hasValidSession
       }
       return true
     },
-    // async jwt({ token, user }) {
-    //   console.log(`get jwt here...user:${user}, token:${token}`)
-    //   if (user) {
-    //     token.address = user.address
-    //     token.chainId = user.chainId
-    //     token.id = user.id
-    //     console.log(`user:${user}, token:${token}`)
-    //   }
-    //   return token
-    // },
-    // session({ session, token }) {
-    //   console.log(`get sesson here... session :${session}, token:${token}`)
-    //   if (!token.sub) {
-    //     return session
-    //   }
-    //   if (token) {
-    //     session.user = {
-    //       ...session.user,
-    //       id: token.sub as string,
-    //       email: token.email as string,
-    //       address: token.address as string,
-    //       chainId: token.chainId as number,
+    // jwt({ token, user, account, trigger }) {
+    //   logWithTimestamp(
+    //     'JWT Callback - Input:',
+    //     '\n\ttoken:',
+    //     token,
+    //     '\n\tuser:',
+    //     user,
+    //     '\n\taccount:',
+    //     account,
+    //     '\n\ttrigger:',
+    //     trigger
+    //   )
+
+    //   // 初次登录时设置用户信息
+    //   if (user && account?.provider === 'siwe') {
+    //     token = {
+    //       ...token,
+    //       //sub: user.id,
+    //       address: user.address,
+    //       chainId: user.chainId,
     //     }
     //   }
-    //   /* const [, chainId, address] = token.sub.split(':')
-    //   if (chainId && address) {
-    //     session.address = address
-    //     session.chainId = parseInt(chainId, 10)
-    //   } */
 
-    //   return session
+    //   logWithTimestamp('JWT Callback - Output:\n\tToken:', token)
+    //   return token
     // },
+
+    // !!! BE CAREFUL return value of ths session() callback as they will be used by client(like metamask wallet) and middleware in callback authorized()
+    session({ session, token, user }) {
+      logWithTimestamp(
+        'Session Callback - Input:',
+        '\n\tsession:',
+        session,
+        '\n\ttoken:',
+        token,
+        '\n\tuser:',
+        user
+      )
+      try {
+        let newSession = session
+
+        if (token) {
+          // 确保会话中包含完整的用户信息
+          const userInfo = {
+            ...session.user,
+            id: token.sub,
+            //address: token.address as string,
+            //name: token.address as string,
+          }
+
+          const [, chainId, address] = token.sub.split(':')
+          if (chainId && address) {
+            newSession = {
+              ...newSession,
+              user: userInfo, // !!! used by authorized() ONLY running in middleware context
+              // !!! below 2 fields mainly consumed by client
+              address: address as string,
+              chainId: parseInt(chainId, 10),
+            }
+          }
+        }
+        logWithTimestamp('Session Callback - Output:\n\tSession:', newSession)
+        return newSession
+      } catch (error) {
+        logWithTimestamp('Session error:', error)
+        return session
+      }
+    },
   },
-  providers: [], // Add providers with an empty array for now
+  providers: [],
 } satisfies NextAuthConfig

@@ -6,7 +6,6 @@ import { z } from 'zod'
 import type { User } from '@/app/lib/definitions'
 import bcrypt from 'bcryptjs'
 import postgres from 'postgres'
-import jwt from 'jsonwebtoken'
 import {
   type SIWESession,
   /* verifySignature, */
@@ -55,19 +54,23 @@ const projectId = process.env.NEXT_PUBLIC_PROJECT_ID
 if (!projectId) {
   throw new Error('NEXT_PUBLIC_PROJECT_ID is not set')
 }
+
+// 添加时间戳日志辅助函数
+function logWithTimestamp(message: string, ...args: any[]) {
+  const timestamp = new Date().toISOString()
+  console.log(`[${timestamp}] ${message}`, ...args)
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  /*
+   * !!! need to distribute auth config bwten auth.ts and middleware.ts  carefully w/ below contraints found so far
+   *
+   */
   ...authConfig,
   secret: nextAuthSecret,
-  debug: true, // 添加调试模式
-  session: {
-    strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30天
-  },
-  jwt: {
-    maxAge: 30 * 24 * 60 * 60, // 30天
-  },
+
   providers: [
-    Credentials({
+    credentialsProvider({
       id: 'credentials',
       name: 'Email',
       async authorize(credentials) {
@@ -75,7 +78,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           .object({ email: z.string().email(), password: z.string().min(6) })
           .safeParse(credentials)
 
-        console.log('credentials authorize() called: ', credentials)
+        logWithTimestamp('credentials authorize() called: ', credentials)
         if (parsedCredentials.success) {
           const { email, password } = parsedCredentials.data
           const user = await getUser(email)
@@ -85,7 +88,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (passwordsMatch) return user
         }
 
-        console.log('Invalid credentials111')
+        logWithTimestamp('Invalid credentials111')
         return null
       },
     }),
@@ -104,7 +107,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           placeholder: '0x0',
         },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         try {
           if (!credentials?.message) {
             throw new Error('SiweMessage is undefined')
@@ -113,7 +116,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const address = getAddressFromMessage(message)
           const chainId = getChainIdFromMessage(message)
 
-          console.log(`siwe authorize() called, credentials: ${credentials}`)
+          logWithTimestamp(
+            'SIWE authorize() called, INPUT:\n\tcredentials:',
+            credentials,
+            '\n\trequest:',
+            request
+          )
           // for the moment, the verifySignature is not working with social logins and emails  with non deployed smart accounts
           /*  const isValid = await verifySignature({
           address,
@@ -135,55 +143,126 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           })
           // end o view verifyMessage
 
-          console.log(
-            `siwe authorize() called, address: ${address} chainid: ${chainId} verifed: ${isValid} msg: ${message}`
+          logWithTimestamp(
+            `SIWE authorize() result - \n\taddress: ${address}, chainid: ${chainId}, verified: ${isValid}, \n\tmsg: ${message}`
           )
           if (isValid) {
-            return {
+            // Add logic here to look up the user from the credentials supplied
+            const user = {
               id: `${chainId}:${address}`,
               address: address,
               chainId: parseInt(chainId.split(':')[1]), // 从 'eip155:1' 格式中提取数字
             }
+            return user
           }
 
           return null
         } catch (e) {
-          console.error('SIWE authorize error:', e)
+          logWithTimestamp('SIWE authorize error:', e)
           return null
         }
       },
     }),
   ],
-  callbacks: {
-    async jwt({ token, user, account }) {
-      if (user && account?.provider === 'siwe') {
-        token.address = user.address
-        token.chainId = user.chainId
-        token.sub = user.id
-      }
-      console.log(
-        'JWT Callback - user:',
-        user,
-        'Token:',
-        token,
-        'Account:',
-        account
-      )
-      return token
-    },
-    async session({ session, token }) {
-      if (!token.sub) {
-        return session
-      }
+  // callbacks: {
+  //   async authorized({ auth, request }) {
+  //     // 增强用户状态检查
+  //     const hasValidSession = !!(
+  //       auth?.expires &&
+  //       new Date(auth.expires) > new Date() &&
+  //       auth?.user
+  //     )
+  //     const { nextUrl } = request
 
-      const [, chainId, address] = token.sub.split(':')
-      if (chainId && address) {
-        session.address = address
-        session.chainId = parseInt(chainId, 10)
-      }
+  //     logWithTimestamp('Callback in auth.ts authorized, Input:\n\tauth:', auth)
 
-      console.log('Session Callback - Session:', session, 'Token:', token)
-      return session
-    },
-  },
+  //     logWithTimestamp(
+  //       'Callback in auth.ts authorized -',
+  //       '\n\tauth:',
+  //       JSON.stringify(
+  //         {
+  //           ...auth,
+  //           //user: auth?.user || {},
+  //           user: auth?.user,
+  //           session: auth?.session,
+  //         },
+  //         null,
+  //         2
+  //       ),
+  //       '\n\thasValidSession:',
+  //       hasValidSession,
+  //       '\n\tnextUrl:',
+  //       nextUrl.toString()
+  //     )
+
+  //     const isOnDashboard = nextUrl.pathname.startsWith('/dashboard')
+  //     if (isOnDashboard) {
+  //       return hasValidSession
+  //     }
+  //     return true
+  //   },
+  //   jwt({ token, user, account, trigger }) {
+  //     logWithTimestamp(
+  //       'JWT Callback in auth.ts - Input:',
+  //       '\n\ttoken:',
+  //       token,
+  //       '\n\tuser:',
+  //       user,
+  //       '\n\taccount:',
+  //       account,
+  //       '\n\ttrigger:',
+  //       trigger
+  //     )
+
+  //     // 初次登录时设置用户信息
+  //     if (user && account?.provider === 'siwe') {
+  //       token = {
+  //         ...token,
+  //         sub: user.id,
+  //         address: user.address,
+  //         //chainId: user.chainId,
+  //       }
+  //     }
+
+  //     logWithTimestamp('JWT Callback in auth.ts - Output:\n\tToken:', token)
+  //     return token
+  //   },
+
+  //   session({ session, token }) {
+  //     logWithTimestamp(
+  //       'Session Callback in auth.ts - Input:',
+  //       '\n\tsession:',
+  //       session,
+  //       '\n\ttoken:',
+  //       token
+  //     )
+  //     try {
+  //       let newSession = session
+
+  //       if (token) {
+  //         // 确保会话中包含完整的用户信息
+  //         const userInfo = {
+  //           id: token.sub,
+  //           address: token.address as string,
+  //           //name: token.address as string,
+  //         }
+
+  //         newSession = {
+  //           ...newSession,
+  //           user: userInfo,
+  //           //address: token.address as string,
+  //           //chainId: token.chainId as number,
+  //         }
+  //       }
+  //       logWithTimestamp(
+  //         'Session Callback in auth.ts - Output:\n\tSession:',
+  //         newSession
+  //       )
+  //       return newSession
+  //     } catch (error) {
+  //       logWithTimestamp('Session error:', error)
+  //       return session
+  //     }
+  //   },
+  // },
 })
