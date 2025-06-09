@@ -238,7 +238,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             throw new CredentialsSigninError(AuthErrorType.USER_NOT_FOUND)
           }
           // TODO:
-          // 1. to call siwe verifyMsg to validate signature
+          // 1. to call siwe verifyMsg to validate signature. DONE
           // 2. simplify error rendering for both auth methods(still 2 different approaches)
 
           // we are going to use https://viem.sh/docs/actions/public/verifyMessage.html
