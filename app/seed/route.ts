@@ -2,25 +2,38 @@ import bcrypt from 'bcryptjs'
 import postgres from 'postgres'
 import { invoices, customers, revenue, users } from '../lib/placeholder-data'
 
-const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' })
+const sql = postgres(process.env.POSTGRES_URL!, {
+  ssl: 'require',
+  max: 10,
+  idle_timeout: 20,
+  connect_timeout: 10,
+  max_lifetime: 60 * 30,
+  max_retries: 3,
+})
 
 async function seedUsers() {
   await sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`
+
   await sql`
     CREATE TABLE IF NOT EXISTS users (
       id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
       name VARCHAR(255) NOT NULL,
       email TEXT NOT NULL UNIQUE,
-      password TEXT NOT NULL
+      password TEXT NOT NULL,
+      address VARCHAR(42)
     );
+  `
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS users_address_idx ON users (address);
   `
 
   const insertedUsers = await Promise.all(
     users.map(async (user) => {
       const hashedPassword = await bcrypt.hash(user.password, 10)
       return sql`
-        INSERT INTO users (id, name, email, password)
-        VALUES (${user.id}, ${user.name}, ${user.email}, ${hashedPassword})
+        INSERT INTO users (id, name, email, password, address)
+        VALUES (${user.id}, ${user.name}, ${user.email}, ${hashedPassword}, ${user.address})
         ON CONFLICT (id) DO NOTHING;
       `
     })

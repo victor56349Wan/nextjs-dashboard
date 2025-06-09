@@ -7,15 +7,60 @@ function logWithTimestamp(message: string, ...args: any[]) {
 }
 
 export const authConfig = {
-  pages: {
-    signIn: '/login',
-  },
   debug: true, // 添加调试模式
   session: {
     strategy: 'jwt',
   },
-
   callbacks: {
+    /*     async signIn({ user, account, profile, email, credentials }) {
+      logWithTimestamp('SignIn回调 - Input:', { user, account, credentials })
+
+      // 如果是认证错误，直接返回错误URL
+      if (!user || (credentials && 'error' in credentials)) {
+        const errorMessage = credentials?.error || '认证失败'
+        logWithTimestamp('SignIn失败:', errorMessage)
+        return `/auth/error?error=CredentialsSignin&message=${encodeURIComponent(
+          errorMessage
+        )}`
+      }
+
+      return true
+    }, */
+
+    /*     async redirect({ url, baseUrl }) {
+      logWithTimestamp('重定向回调 - Input:', { url, baseUrl })
+
+      // 如果URL包含错误参数，确保重定向到错误页面
+      if (url.includes('error=')) {
+        const errorUrl = new URL(
+          url.startsWith('http') ? url : `${baseUrl}${url}`
+        )
+        const finalErrorUrl = new URL('/auth/error', baseUrl)
+
+        // 复制所有错误相关参数
+        errorUrl.searchParams.forEach((value, key) => {
+          if (key === 'error' || key === 'message') {
+            finalErrorUrl.searchParams.set(key, value)
+          }
+        })
+
+        logWithTimestamp('错误重定向URL:', finalErrorUrl.toString())
+        return finalErrorUrl.toString()
+      }
+
+      // 如果是成功登录，重定向到仪表板
+      if (url.startsWith(baseUrl) && !url.includes('/auth/error')) {
+        const finalUrl = url.includes('/dashboard')
+          ? url
+          : `${baseUrl}/dashboard`
+        logWithTimestamp('成功登录重定向:', finalUrl)
+        return finalUrl
+      }
+
+      logWithTimestamp('默认重定向:', baseUrl)
+      return baseUrl
+    }, */
+
     // !!!! auth para is the object returned by session() callback running in middleware context
     async authorized({ auth, request }) {
       // 增强用户状态检查
@@ -94,22 +139,20 @@ export const authConfig = {
       try {
         let newSession = session
 
-        if (token) {
+        if (token && token.sub) {
           // 确保会话中包含完整的用户信息
-          const userInfo = {
-            ...session.user,
-            id: token.sub,
-            //address: token.address as string,
-            //name: token.address as string,
-          }
-
           const [, chainId, address] = token.sub.split(':')
           if (chainId && address) {
+            const userInfo = {
+              ...session.user,
+              id: token.sub,
+              address: address,
+            }
+
             newSession = {
               ...newSession,
-              user: userInfo, // !!! used by authorized() ONLY running in middleware context
-              // !!! below 2 fields mainly consumed by client
-              address: address as string,
+              user: userInfo as any, // 使用类型断言处理复杂的类型问题
+              address: address,
               chainId: parseInt(chainId, 10),
             }
           }

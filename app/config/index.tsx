@@ -104,18 +104,20 @@ export const siweConfig = createSIWEConfig({
         signature,
         redirect: true,
         //callbackUrl: '/protected',
-        callbackUrl: '/dashboard',
+        redirectTo: '/dashboard',
       })
 
       return Boolean(success?.ok)
     } catch (error) {
+      console.log('verifyMessage: signIn failed, error: ', error)
       return false
     }
   },
   signOut: async () => {
     try {
       await signOut({
-        redirect: false,
+        redirect: true,
+        redirectTo: '/login',
       })
 
       return true
