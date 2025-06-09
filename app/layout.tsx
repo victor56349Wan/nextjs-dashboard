@@ -9,7 +9,6 @@ import { cookieToInitialState } from 'wagmi'
 
 import { wagmiAdapter } from './config'
 import AppKitProvider from './context'
-import { MessageProvider } from './ui/message-provider'
 import { ToastProvider } from './ui/toast'
 
 export const metadata: Metadata = {
@@ -34,7 +33,7 @@ export default async function RootLayout({
       <body className={`${inter.className} antialiased`}>
         <ToastProvider>
           <AppKitProvider initialState={initialState}>
-            <MessageProvider>{children}</MessageProvider>
+            {children}
           </AppKitProvider>
         </ToastProvider>
       </body>
