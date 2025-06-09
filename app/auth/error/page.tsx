@@ -1,5 +1,6 @@
 'use client'
 import { useSearchParams } from 'next/navigation'
+import { lusitana } from '@/app/ui/fonts'
 
 export default function ErrorPage({
   error1,
@@ -38,5 +39,39 @@ export default function ErrorPage({
         </button>
       </div>
     </div>
+  )
+}
+
+export async function AuthErrorPage({
+  searchParams,
+}: {
+  searchParams: { error?: string; message?: string }
+}) {
+  const error = searchParams?.error || ''
+  const message = searchParams?.message || ''
+
+  function getErrorMessage(error: string, message: string) {
+    switch (error) {
+      case 'SIGNATURE_INVALID':
+        return 'Invalid signature. Please try again.'
+      case 'USER_NOT_FOUND':
+        return message || 'Login failed. Please check your wallet address'
+      case 'DATABASE_ERROR':
+        return message || 'Service error. Please try again later'
+      default:
+        return message || 'An error occurred. Please try again later'
+    }
+  }
+
+  return (
+    <main className="flex items-center justify-center md:h-screen">
+      <div className="relative mx-auto flex w-full max-w-[400px] flex-col space-y-2.5 p-4 md:-mt-32">
+        <div className="flex h-full w-full items-center justify-center rounded-lg bg-red-50 p-3 text-red-500">
+          <h2 className={`${lusitana.className} text-xl`}>
+            {getErrorMessage(error, message)}
+          </h2>
+        </div>
+      </div>
+    </main>
   )
 }

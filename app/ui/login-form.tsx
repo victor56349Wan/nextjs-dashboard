@@ -1,44 +1,37 @@
 'use client'
 import { lusitana } from '@/app/ui/fonts'
-import { AtSymbolIcon, KeyIcon } from '@heroicons/react/24/outline'
+import {
+  AtSymbolIcon,
+  KeyIcon,
+  ExclamationCircleIcon,
+} from '@heroicons/react/24/outline'
 import { ArrowRightIcon } from '@heroicons/react/20/solid'
 import { Button } from './button'
 import { useActionState } from 'react'
-import { useEffect } from 'react'
-import { useMessage } from './message'
 import { authenticate } from '@/app/lib/actions'
 import { useSearchParams } from 'next/navigation'
+import { useEffect } from 'react'
+import { useToast } from './toast'
 
 export default function LoginForm() {
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
   const siweError = searchParams.get('error') || ''
-  const code = searchParams.get('code') || ''
+  const errorCode = searchParams.get('code') || ''
   const [errorMessage, formAction, isPending] = useActionState(
     authenticate,
     undefined
   )
-  const { messageComponent, show } = useMessage()
 
-  useEffect(() => {
-    if (errorMessage) {
-      show({
-        type: 'error',
-        content: errorMessage,
-        duration: 5000,
-      })
-    }
-  }, [errorMessage])
+  const { showToast } = useToast()
 
+  // 处理 SIWE 错误
   useEffect(() => {
-    if (siweError) {
-      show({
-        type: 'error',
-        content: `SIWE:${code ? ` (${code})` : ''}`,
-        duration: 5000,
-      })
+    if (siweError || errorCode) {
+      showToast(`siweError: ${errorCode ? ` (${errorCode})` : ''}`, 'error')
     }
-  }, [siweError, code])
+  }, [siweError, errorCode, showToast])
+
   return (
     <div>
       <form action={formAction} className="space-y-3">
@@ -90,7 +83,15 @@ export default function LoginForm() {
           <Button className="mt-4 w-full" aria-disabled={isPending}>
             Log in <ArrowRightIcon className="ml-auto h-5 w-5 text-gray-50" />
           </Button>
-          <div className="min-h-[40px] mt-3">{messageComponent}</div>
+          <div className="flex h-8 items-end space-x-1">
+            {/* Add form errors here */}
+            {errorMessage && (
+              <>
+                <ExclamationCircleIcon className="h-5 w-5 text-red-500" />
+                <p className="text-sm text-red-500">{errorMessage}</p>
+              </>
+            )}
+          </div>
         </div>
       </form>
     </div>

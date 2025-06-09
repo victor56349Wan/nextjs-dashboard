@@ -12,47 +12,43 @@ export async function authenticate(
   formData: FormData
 ) {
   try {
-    console.log('认证尝试:', formData)
+    console.log('Authentication attempt:', formData)
 
-    /*     const result = await signIn('credentials', {
-      ...Object.fromEntries(formData),
-      redirect: false,
-    }) */
     const result = await signIn('credentials', formData)
 
     if (result?.error) {
-      console.error('认证错误:', result.error)
+      console.error('Authentication error:', result.error)
 
-      // 尝试解析错误信息
+      // Try to parse error message
       try {
         const errorData = JSON.parse(result.error)
         if (errorData.message) {
           return errorData.message
         }
       } catch {
-        // 如果不是JSON格式，直接返回错误消息
+        // If not JSON format, return error message directly
         return result.error
       }
 
-      return '认证失败，请稍后重试'
+      return 'Authentication failed, please try again later'
     }
-
-    /*     // 认证成功后重定向
-    const callbackUrl = formData.get('callbackUrl')
-    if (callbackUrl) {
-      redirect(callbackUrl as string)
-    } else {
-      redirect('/dashboard')
-    } */
   } catch (error: any) {
-    console.error('认证过程发生错误:', error, 'type of error', typeof error)
+    console.error(
+      'Authentication process error:',
+      error,
+      'type of error',
+      typeof error
+    )
     if (error instanceof AuthError) {
-      // 可以访问特定的错误属性
-      console.log('type: ', error.type) // 错误类型
-      console.log('msg: ', error.message) // 错误消息
-      console.log('code: ', error.code) // 错误消息
+      // Access specific error properties
+      console.log('type: ', error.type) // Error type
+      console.log('msg: ', error.message) // Error message
+      console.log('code: ', error.code) // Error code
+      return (
+        error.code || 'Authentication process error, please try again later'
+      )
     }
-    return error.code || '认证过程中发生错误，请稍后重试'
+    throw error
   }
 }
 

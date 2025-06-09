@@ -27,31 +27,6 @@ class CredentialsSigninError extends CredentialsSignin {
   }
 }
 
-/* 
-// 处理认证错误
-function handleAuthError(error: unknown) {
-  logWithTimestamp('转换认证错误:', error)
-
-  let errorMessage = '认证失败'
-  let errorType = 'UNKNOWN_ERROR'
-
-  if (error instanceof Error) {
-    errorMessage = error.message
-    errorType = error.name || 'ERROR'
-  } else if (typeof error === 'string') {
-    errorMessage = error
-  } else if (typeof error === 'object' && error !== null) {
-    const err = error as any
-    errorMessage = err.message || errorMessage
-    errorType = err.type || errorType
-  }
-
-  logWithTimestamp('创建的认证错误:', {
-    name: 'CredentialsSignin',
-    message: errorMessage,
-    type: errorType,
-  }) */
-
 // 扩展 NextAuth 的类型定义
 declare module 'next-auth' {
   interface Session extends SIWESession {
@@ -171,7 +146,7 @@ if (!projectId) {
   throw new Error('NEXT_PUBLIC_PROJECT_ID is not set')
 }
 
-// 添加时间戳日志辅助函数
+// Add timestamp log helper function
 function logWithTimestamp(message: string, ...args: any[]) {
   const timestamp = new Date().toISOString()
   console.log(`[${timestamp}] ${message}`, ...args)
@@ -179,7 +154,7 @@ function logWithTimestamp(message: string, ...args: any[]) {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   /*
-   * !!! need to distribute auth config bwten auth.ts and middleware.ts  carefully w/ below contraints found so far
+   * !!! need to distribute auth config bwtn auth.ts and middleware.ts  carefully w/ below constraints found so far
    *
    */
   ...authConfig,
@@ -188,53 +163,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: '/login',
     error: '/auth/error',
   },
-  /*
-  events: {
-    async signInError(message) {
-      logWithTimestamp('登录错误事件:', message)
-    },
-  },
-  callbacks: {
-    async signIn({ user, account, profile, credentials }) {
-      logWithTimestamp('登录回调:', { user, account })
-      return true
-    },
-         async redirect({ url, baseUrl }) {
-      logWithTimestamp('111重定向回调 - Input:', { url, baseUrl })
 
-      // 检查 URL 是否包含任何错误参数
-      try {
-        const currentUrl = new URL(url)
-        const error = currentUrl.searchParams.get('error')
-
-        if (error) {
-          logWithTimestamp('检测到错误参数:', { error })
-          const errorUrl = new URL('/auth/error', baseUrl)
-
-          // 保留所有错误相关的参数
-          for (const [key, value] of currentUrl.searchParams.entries()) {
-            if (key.startsWith('error') || key === 'message') {
-              errorUrl.searchParams.set(key, value)
-            }
-          }
-
-          logWithTimestamp('重定向到错误页面:', errorUrl.toString())
-          return errorUrl.toString()
-        }
-      } catch (e) {
-        logWithTimestamp('解析URL时出错:', e)
-      }
-
-      // 判断是否需要重定向到指定页面
-      if (url.startsWith(baseUrl)) {
-        logWithTimestamp('重定向到原始URL:', url)
-        return url
-      }
-
-      logWithTimestamp('重定向到基础URL:', baseUrl)
-      return baseUrl
-    }, 
-  },*/
   providers: [
     credentialsProvider({
       id: 'credentials',
@@ -244,11 +173,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           .object({ email: z.string().email(), password: z.string().min(6) })
           .safeParse(credentials)
 
-        logWithTimestamp('邮箱认证 - 收到请求:', credentials)
+        logWithTimestamp('Email auth - Request received:', credentials)
 
         if (!parsedCredentials.success) {
           throw new CredentialsSigninError(
-            AuthErrorType.USER_NOT_FOUND + ': ' + '邮箱或密码格式无效'
+            AuthErrorType.USER_NOT_FOUND +
+              ': ' +
+              'Invalid email or password format'
           )
         }
 
@@ -256,21 +187,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const user = await getUser(email)
 
         if (!user) {
-          logWithTimestamp('邮箱认证 - 用户不存在')
+          logWithTimestamp('Email auth - User not found')
           throw new CredentialsSigninError(
-            AuthErrorType.USER_NOT_FOUND + ': ' + '邮箱错误'
+            AuthErrorType.USER_NOT_FOUND + ': ' + 'Email not found'
           )
         }
 
         const passwordsMatch = await bcrypt.compare(password, user.password)
         if (!passwordsMatch) {
-          logWithTimestamp('邮箱认证 - 密码不正确')
+          logWithTimestamp('Email auth - Incorrect password')
           throw new CredentialsSigninError(
-            AuthErrorType.USER_NOT_FOUND + ': ' + '密码错误'
+            AuthErrorType.USER_NOT_FOUND + ': ' + 'Invalid password'
           )
         }
 
-        logWithTimestamp('邮箱认证 - 认证成功')
+        logWithTimestamp('Email auth - Authentication successful')
         return user
       },
     }),
@@ -284,7 +215,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials, request) {
         try {
           if (!credentials?.message) {
-            logWithTimestamp('SIWE认证 - 错误: 未提供消息')
+            logWithTimestamp('SIWE auth - Error: No message provided')
             throw new CredentialsSigninError(AuthErrorType.SIGNATURE_INVALID)
           }
 
@@ -293,32 +224,46 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const chainId = getChainIdFromMessage(message as string)
 
           logWithTimestamp(
-            'SIWE认证 - 收到请求:',
-            '\n\t地址:',
+            'SIWE auth - Request received:',
+            '\n\tAddress:',
             address,
-            '\n\t链ID:',
+            '\n\tChain ID:',
             chainId
           )
 
-          // 查询用户是否已注册
+          // Check if user is registered
           const dbUser = await getUserByAddress(address)
           if (!dbUser) {
-            logWithTimestamp('SIWE认证 - 用户未注册:', address)
+            logWithTimestamp('SIWE auth - User not registered:', address)
             throw new CredentialsSigninError(AuthErrorType.USER_NOT_FOUND)
           }
           // TODO:
           // 1. to call siwe verifyMsg to validate signature
-          // 2. simply error render for both auth.
+          // 2. simplify error rendering for both auth methods(still 2 different approaches)
 
-          logWithTimestamp('SIWE认证 - 认证成功:', address)
-          return {
-            ...dbUser,
-            id: `${chainId}:${address}`,
-            address: address,
-            chainId: parseInt(chainId.split(':')[1]),
+          // we are going to use https://viem.sh/docs/actions/public/verifyMessage.html
+          const publicClient = createPublicClient({
+            transport: http(
+              `https://rpc.walletconnect.org/v1/?chainId=${chainId}&projectId=${projectId}`
+            ),
+          })
+          const isValid = await publicClient.verifyMessage({
+            message,
+            address: address as `0x${string}`,
+            signature: signature as `0x${string}`,
+          })
+          // end o view verifyMessage
+          if (isValid) {
+            logWithTimestamp('SIWE auth - Authentication successful:', address)
+            return {
+              ...dbUser,
+              id: `${chainId}:${address}`,
+              address: address,
+              chainId: parseInt(chainId.split(':')[1]),
+            }
           }
         } catch (error) {
-          logWithTimestamp('SIWE认证 - 错误:', error)
+          logWithTimestamp('SIWE auth - Error:', error)
           throw error
         }
       },

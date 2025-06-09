@@ -9,6 +9,8 @@ import { cookieToInitialState } from 'wagmi'
 
 import { wagmiAdapter } from './config'
 import AppKitProvider from './context'
+import { MessageProvider } from './ui/message-provider'
+import { ToastProvider } from './ui/toast'
 
 export const metadata: Metadata = {
   title: {
@@ -25,15 +27,16 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   const headersList = await headers()
-  /*console.log('http headers: ', headersList)
-   const key = `${wagmiAdapter.wagmiConfig.storage?.key}.store`
-  console.log('key config: ', key) */
   const cookie = headersList.get('cookie')
   const initialState = cookieToInitialState(wagmiAdapter.wagmiConfig, cookie)
   return (
     <html lang="en">
       <body className={`${inter.className} antialiased`}>
-        <AppKitProvider initialState={initialState}>{children}</AppKitProvider>
+        <ToastProvider>
+          <AppKitProvider initialState={initialState}>
+            <MessageProvider>{children}</MessageProvider>
+          </AppKitProvider>
+        </ToastProvider>
       </body>
     </html>
   )

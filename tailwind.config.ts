@@ -1,4 +1,4 @@
-import type { Config } from 'tailwindcss';
+import type { Config } from 'tailwindcss'
 
 const config: Config = {
   content: [
@@ -18,6 +18,15 @@ const config: Config = {
           600: '#2F6FEB',
         },
       },
+      keyframes: {
+        'slide-down': {
+          '0%': { transform: 'translateY(-100%)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+      },
+      animation: {
+        'slide-down': 'slide-down 0.3s ease-out forwards',
+      },
     },
     keyframes: {
       shimmer: {
@@ -28,5 +37,5 @@ const config: Config = {
     },
   },
   plugins: [require('@tailwindcss/forms')],
-};
-export default config;
+}
+export default config
