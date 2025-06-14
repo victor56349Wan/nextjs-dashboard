@@ -5,8 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import postgres from 'postgres'
 import { signIn } from '@/auth'
-import { AuthError } from 'next-auth'
-
+import { CredentialsSignin } from 'next-auth'
 export async function authenticate(
   prevState: string | undefined,
   formData: FormData
@@ -14,7 +13,7 @@ export async function authenticate(
   try {
     console.log('Authentication attempt:', formData)
 
-    const result = await signIn('credentials', formData)
+    const result = (await signIn('credentials', formData)) as any
 
     if (result?.error) {
       console.error('Authentication error:', result.error)
@@ -39,15 +38,22 @@ export async function authenticate(
       'type of error',
       typeof error
     )
-    if (error instanceof AuthError) {
-      // Access specific error properties
+    if (error instanceof CredentialsSignin) {
+      // Access specific error propertie
       console.log('type: ', error.type) // Error type
       console.log('msg: ', error.message) // Error message
       console.log('code: ', error.code) // Error code
-      return (
-        error.code || 'Authentication process error, please try again later'
-      )
+      // Return the error code directly as it contains our custom error message
+      return error.code || 'Authentication failed'
     }
+    /* 
+    also an error in case of auth OK, log as below:
+    ---
+    Email auth - Authentication successful
+    Authentication process error: Error: NEXT_REDIRECT
+    ---
+    just having to throw it will let the framework works well!
+    */
     throw error
   }
 }
@@ -112,11 +118,11 @@ export async function updateInvoice(id: string, formData: FormData) {
 }
 
 export async function deleteInvoice(id: string) {
-  throw new Error('Failed to Delete Invoice')
-  /* try {
+  //throw new Error('Failed to Delete Invoice')
+  try {
     await sql`DELETE FROM invoices WHERE id = ${id}`
   } catch (error) {
     console.log(error)
   }
-  revalidatePath('/dashboard/invoices') */
+  revalidatePath('/dashboard/invoices')
 }

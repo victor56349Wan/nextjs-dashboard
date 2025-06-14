@@ -1,4 +1,5 @@
 import type { NextAuthConfig } from 'next-auth'
+import { responseCookiesToRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies'
 
 // 添加时间戳日志辅助函数
 function logWithTimestamp(message: string, ...args: any[]) {
@@ -22,21 +23,9 @@ export const authConfig = {
       )
       const { nextUrl } = request
 
-      logWithTimestamp('Callback authorized, Input:\n\tauth:', auth)
-
       logWithTimestamp(
-        'Callback authorized -',
-        '\n\tauth:',
-        JSON.stringify(
-          {
-            ...auth,
-            //user: auth?.user || {},
-            user: auth?.user,
-            session: auth?.session,
-          },
-          null,
-          2
-        ),
+        'Callback authorized, Input:\n\tauth:',
+        auth,
         '\n\thasValidSession:',
         hasValidSession,
         '\n\tnextUrl:',
@@ -44,9 +33,19 @@ export const authConfig = {
       )
 
       const isOnDashboard = nextUrl.pathname.startsWith('/dashboard')
+      const isRootPath = nextUrl.pathname === '/'
+      // adjusting redirected URLs per auth status && ULRs need protection
       if (isOnDashboard) {
         return hasValidSession
+      } else if (hasValidSession && isRootPath) {
+        // Only redirect to dashboard when accessing root path
+        return Response.redirect(new URL('/dashboard', nextUrl))
       }
+      /* else if (!hasValidSession && isRootPath) {
+        // redirect to login when accessing root path w/o auth
+        return Response.redirect(new URL('/login', nextUrl))
+      }
+ */
       return true
     },
 
@@ -63,7 +62,6 @@ export const authConfig = {
       )
       try {
         let newSession = session
-
         if (token && token.sub) {
           // 确保会话中包含完整的用户信息
           const [, chainId, address] = token.sub.split(':')
@@ -76,7 +74,8 @@ export const authConfig = {
 
             newSession = {
               ...newSession,
-              user: userInfo as any, // 使用类型断言处理复杂的类型问题
+              //user: userInfo as any, // 使用类型断言处理复杂的类型问题
+              // !! address && chainId is relevant in session returned to authorized() callback for validating sessions in middleware
               address: address,
               chainId: parseInt(chainId, 10),
             }

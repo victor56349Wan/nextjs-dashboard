@@ -107,7 +107,7 @@ export const siweConfig = createSIWEConfig({
         redirectTo: '/dashboard',
       })
 
-      return Boolean(success?.ok)
+      return Boolean(success)
     } catch (error) {
       console.log('verifyMessage: signIn failed, error: ', error)
       return false

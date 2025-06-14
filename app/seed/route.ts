@@ -8,7 +8,7 @@ const sql = postgres(process.env.POSTGRES_URL!, {
   idle_timeout: 20,
   connect_timeout: 10,
   max_lifetime: 60 * 30,
-  max_retries: 3,
+  //max_retries: 3,
 })
 
 async function seedUsers() {
