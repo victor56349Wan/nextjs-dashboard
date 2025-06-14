@@ -52,7 +52,7 @@ const sql = postgres(process.env.POSTGRES_URL!, {
   idle_timeout: 20, // 空闲连接超时(秒)
   connect_timeout: 10, // 连接超时(秒)
   max_lifetime: 60 * 30, // 连接最大生命周期(秒)
-  max_retries: 3, // 查询失败重试次数
+  //max_retries: 3, // 查询失败重试次数
 })
 
 async function getUser(email: string): Promise<User | undefined> {
@@ -151,12 +151,11 @@ function logWithTimestamp(message: string, ...args: any[]) {
   const timestamp = new Date().toISOString()
   console.log(`[${timestamp}] ${message}`, ...args)
 }
-
+/*
+ * !!! need to distribute auth config bwtn auth.ts and middleware.ts  carefully w/ below constraints found so far
+ *
+ */
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  /*
-   * !!! need to distribute auth config bwtn auth.ts and middleware.ts  carefully w/ below constraints found so far
-   *
-   */
   ...authConfig,
   secret: nextAuthSecret,
   pages: {
@@ -212,10 +211,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         message: { label: 'Message', type: 'text', placeholder: '0x0' },
         signature: { label: 'Signature', type: 'text', placeholder: '0x0' },
       },
-      async authorize(credentials, request) {
+      async authorize(credentials) {
         try {
           if (!credentials?.message) {
-            logWithTimestamp('SIWE auth - Error: No message provided')
+            logWithTimestamp('SIWE authorize() - Error: No message provided')
             throw new CredentialsSigninError(AuthErrorType.SIGNATURE_INVALID)
           }
 
@@ -224,7 +223,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           const chainId = getChainIdFromMessage(message as string)
 
           logWithTimestamp(
-            'SIWE auth - Request received:',
+            'SIWE authorize() - Request received:',
             '\n\tAddress:',
             address,
             '\n\tChain ID:',
@@ -234,7 +233,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // Check if user is registered
           const dbUser = await getUserByAddress(address)
           if (!dbUser) {
-            logWithTimestamp('SIWE auth - User not registered:', address)
+            logWithTimestamp('SIWE authorize() - User not registered:', address)
             throw new CredentialsSigninError(AuthErrorType.USER_NOT_FOUND)
           }
           // TODO:
@@ -248,22 +247,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             ),
           })
           const isValid = await publicClient.verifyMessage({
-            message,
+            message: message as `0x${string}`,
             address: address as `0x${string}`,
             signature: signature as `0x${string}`,
           })
           // end o view verifyMessage
           if (isValid) {
-            logWithTimestamp('SIWE auth - Authentication successful:', address)
-            return {
+            const user = {
               ...dbUser,
               id: `${chainId}:${address}`,
-              address: address,
-              chainId: parseInt(chainId.split(':')[1]),
+              // !!! id is relevant in authorize() return value as being passed in token
+              //address: address,
+              //chainId: parseInt(chainId.split(':')[1]),
             }
+            logWithTimestamp(
+              'SIWE authorize() - Authentication successful:',
+              address,
+              'reUser: ',
+              user
+            )
+            return user
+          } else {
+            logWithTimestamp(
+              'SIWE authorize() - Error: signature verification failed'
+            )
+            throw new CredentialsSigninError(AuthErrorType.SIGNATURE_INVALID)
           }
         } catch (error) {
-          logWithTimestamp('SIWE auth - Error:', error)
+          logWithTimestamp('SIWE authorize() - Error:', error)
           throw error
         }
       },
