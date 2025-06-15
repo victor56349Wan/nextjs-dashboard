@@ -319,12 +319,30 @@ export function UsersTableSkeleton() {
       <div className="inline-block min-w-full align-middle">
         <div className="rounded-lg bg-gray-50 p-2 md:pt-0">
           <div className="md:hidden">
-            <TableRowSkeleton />
-            <TableRowSkeleton />
-            <TableRowSkeleton />
-            <TableRowSkeleton />
-            <TableRowSkeleton />
-            <TableRowSkeleton />
+            <div className="mb-2 w-full rounded-md bg-white p-4">
+              <div className="flex items-center justify-between border-b pb-4">
+                <div>
+                  <div className="mb-2 h-6 w-32 rounded bg-gray-100"></div>
+                  <div className="h-6 w-24 rounded bg-gray-100"></div>
+                </div>
+                <div className="h-6 w-16 rounded bg-gray-100"></div>
+              </div>
+              <div className="flex w-full items-center justify-between pt-4">
+                <div className="h-6 w-16 rounded bg-gray-100"></div>
+              </div>
+            </div>
+            <div className="mb-2 w-full rounded-md bg-white p-4">
+              <div className="flex items-center justify-between border-b pb-4">
+                <div>
+                  <div className="mb-2 h-6 w-32 rounded bg-gray-100"></div>
+                  <div className="h-6 w-24 rounded bg-gray-100"></div>
+                </div>
+                <div className="h-6 w-16 rounded bg-gray-100"></div>
+              </div>
+              <div className="flex w-full items-center justify-between pt-4">
+                <div className="h-6 w-16 rounded bg-gray-100"></div>
+              </div>
+            </div>
           </div>
           <table className="hidden min-w-full text-gray-900 md:table">
             <thead className="rounded-lg text-left text-sm font-normal">

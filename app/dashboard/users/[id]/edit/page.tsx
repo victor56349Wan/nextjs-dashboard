@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: '编辑用户',
+  title: 'Edit User',
 }
 
 export default async function Page(props: {
@@ -25,9 +25,9 @@ export default async function Page(props: {
     <main>
       <Breadcrumbs
         breadcrumbs={[
-          { label: '用户管理', href: '/dashboard/users' },
+          { label: 'Users', href: '/dashboard/users' },
           {
-            label: '编辑用户',
+            label: 'Edit User',
             href: `/dashboard/users/${id}/edit`,
             active: true,
           },

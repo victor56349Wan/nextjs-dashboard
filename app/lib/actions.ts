@@ -110,35 +110,38 @@ const createBasicUserSchema = () =>
   z.object({
     id: z.string(),
     name: z.string({
-      invalid_type_error: '请输入用户姓名',
-      required_error: '用户姓名不能为空',
+      invalid_type_error: 'Please enter a name',
+      required_error: 'Name is required',
     }),
     email: z
       .string({
-        invalid_type_error: '请输入电子邮箱',
-        required_error: '电子邮箱不能为空',
+        invalid_type_error: 'Please enter an email',
+        required_error: 'Email is required',
       })
-      .email('请输入有效的电子邮箱地址'),
+      .email('Please enter a valid email address'),
     password: z
       .string({
-        required_error: '密码不能为空',
+        required_error: 'Password is required',
       })
-      .min(8, '密码长度至少为8个字符')
-      .regex(passwordRegex.number, '密码必须包含数字')
-      .regex(passwordRegex.upper, '密码必须包含大写字母')
-      .regex(passwordRegex.lower, '密码必须包含小写字母')
-      .regex(passwordRegex.special, '密码必须包含特殊字符'),
+      .min(8, 'Password must be at least 8 characters')
+      .regex(passwordRegex.number, 'Password must contain a number')
+      .regex(passwordRegex.upper, 'Password must contain an uppercase letter')
+      .regex(passwordRegex.lower, 'Password must contain a lowercase letter')
+      .regex(
+        passwordRegex.special,
+        'Password must contain a special character'
+      ),
     passwordConfirm: z.string({
-      required_error: '请确认密码',
+      required_error: 'Please confirm password',
     }),
     address: z.string().optional(),
   })
 
-// 基础用户 Schema
+// Base User Schema
 const UserSchema = createBasicUserSchema().refine(
   (data) => data.password === data.passwordConfirm,
   {
-    message: '两次输入的密码不一致',
+    message: 'Passwords do not match',
     path: ['passwordConfirm'],
   }
 )
@@ -150,31 +153,28 @@ const UpdateUserSchema = z
     currentPassword: z.string().optional(),
   })
   .superRefine((data, ctx) => {
-    // 如果设置了新密码，则需要验证原密码和确认密码
     if (data.password || data.passwordConfirm || data.currentPassword) {
-      // 如果有任何与密码相关的字段被填写，则所有字段都必须填写
       if (!data.currentPassword) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: '修改密码时必须输入原密码',
+          message: 'Current password is required when changing password',
           path: ['currentPassword'],
         })
       }
       if (!data.password) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: '请输入新密码',
+          message: 'Please enter new password',
           path: ['password'],
         })
       }
       if (!data.passwordConfirm) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: '请确认新密码',
+          message: 'Please confirm new password',
           path: ['passwordConfirm'],
         })
       }
-      // 如果新密码已填写，检查是否匹配
       if (
         data.password &&
         data.passwordConfirm &&
@@ -182,7 +182,7 @@ const UpdateUserSchema = z
       ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: '两次输入的密码不一致',
+          message: 'Passwords do not match',
           path: ['passwordConfirm'],
         })
       }
@@ -350,88 +350,111 @@ export async function updateUser(id: string, formData: FormData) {
   `
 
   if (!currentUser.length) {
-    throw new Error('用户不存在')
+    throw new Error('User not found')
   }
 
   const current = currentUser[0]
 
-  // 处理表单数据
   const rawFormData = {
-    name: formData.get('name')?.toString() || current.name,
-    email: formData.get('email')?.toString() || current.email,
+    name: formData.get('name')?.toString(),
+    email: formData.get('email')?.toString(),
     currentPassword: formData.get('currentPassword')?.toString(),
     password: formData.get('password')?.toString(),
     passwordConfirm: formData.get('passwordConfirm')?.toString(),
-    address: formData.get('address')?.toString() ?? current.address,
+    address: formData.get('address')?.toString(),
   }
 
-  const validatedData = UpdateUser.parse(rawFormData)
+  console.log('Raw form data:', rawFormData)
 
-  const { name, email, currentPassword, password, address } = validatedData
+  // 过滤出需要更新的字段
+  const updateFields = []
+  const values = []
+  let fieldIndex = 1
 
-  try {
-    if (password) {
-      // 获取用户当前的密码哈希
-      const user = await sql<{ password: string }[]>`
-        SELECT password FROM users WHERE id = ${id}
-      `
+  // 检查并添加每个字段
+  if (rawFormData.name && rawFormData.name !== current.name) {
+    updateFields.push(`name = $${fieldIndex}`)
+    values.push(rawFormData.name)
+    fieldIndex++
+    console.log('Will update name to:', rawFormData.name)
+  }
 
-      if (!user.length) {
-        throw new Error('用户不存在')
-      }
-
-      // 验证原密码
-      const isValid = await bcrypt.compare(currentPassword!, user[0].password)
-      if (!isValid) {
-        throw new Error('原密码不正确')
-      }
-
-      // 对新密码进行哈希处理
-      const hashedPassword = await bcrypt.hash(password, 10)
-
-      // 更新包括密码在内的所有字段
-      await sql`
-        UPDATE users
-        SET name = ${name},
-            email = ${email},
-            address = ${address},
-            password = ${hashedPassword}
-        WHERE id = ${id}
-      `
-    } else {
-      // 如果不修改密码，只更新其他字段
-      const updateFields = []
-      const values = []
-
-      if (name !== undefined) {
-        updateFields.push('name = $1')
-        values.push(name)
-      }
-      if (email !== undefined) {
-        updateFields.push(`email = $${values.length + 1}`)
-        values.push(email)
-      }
-      if (address !== undefined) {
-        updateFields.push(`address = $${values.length + 1}`)
-        values.push(address)
-      }
-
-      if (updateFields.length > 0) {
-        values.push(id)
-        await sql.unsafe(
-          `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${
-            values.length
-          }`,
-          values
-        )
-      }
+  if (rawFormData.email && rawFormData.email !== current.email) {
+    // Validate email format
+    if (!rawFormData.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      throw new Error('Invalid email format')
     }
-  } catch (error: any) {
-    if (error.message === '原密码不正确') {
-      throw new Error('原密码不正确')
+    updateFields.push(`email = $${fieldIndex}`)
+    values.push(rawFormData.email)
+    fieldIndex++
+    console.log('Will update email to:', rawFormData.email)
+  }
+
+  if (rawFormData.address && rawFormData.address !== current.address) {
+    updateFields.push(`address = $${fieldIndex}`)
+    values.push(rawFormData.address)
+    fieldIndex++
+    console.log('Will update address to:', rawFormData.address)
+  }
+
+  // 检查密码更新
+  if (rawFormData.password) {
+    // 密码相关的验证逻辑保持不变
+    const user = await sql<{ password: string }[]>`
+      SELECT password FROM users WHERE id = ${id}
+    `
+
+    if (!user.length) {
+      throw new Error('User not found')
     }
-    console.error('Database Error: Failed to update user, error: ', error)
-    throw new Error('更新用户信息失败')
+
+    if (!rawFormData.currentPassword) {
+      throw new Error('Current password is required to change password')
+    }
+
+    // Verify current password
+    const isValid = await bcrypt.compare(
+      rawFormData.currentPassword,
+      user[0].password
+    )
+    if (!isValid) {
+      throw new Error('Incorrect current password')
+    }
+
+    // 对新密码进行哈希处理
+    const hashedPassword = await bcrypt.hash(rawFormData.password, 10)
+    updateFields.push(`password = $${fieldIndex}`)
+    values.push(hashedPassword)
+    fieldIndex++
+  }
+
+  console.log('Update info:', {
+    updateFields,
+    values,
+  })
+
+  if (updateFields.length > 0) {
+    const query = `
+      UPDATE users 
+      SET ${updateFields.join(', ')}
+      WHERE id = $${fieldIndex}
+    `
+    values.push(id)
+
+    console.log('Executing update query:', {
+      query,
+      values,
+    })
+
+    try {
+      await sql.unsafe(query, values)
+      console.log('Update successful')
+    } catch (error) {
+      console.error('SQL Error:', error)
+      throw new Error('Database update failed')
+    }
+  } else {
+    console.log('No fields to update')
   }
 
   revalidatePath('/dashboard/users')
