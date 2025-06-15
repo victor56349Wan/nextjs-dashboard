@@ -68,6 +68,34 @@ const FormSchema = z.object({
 
 const CreateInvoice = FormSchema.omit({ id: true, date: true })
 
+const CustomerSchema = z.object({
+  id: z.string(),
+  name: z.string({
+    invalid_type_error: 'Please enter a name.',
+    required_error: 'Please enter a name.',
+  }),
+  email: z
+    .string({
+      invalid_type_error: 'Please enter an email.',
+      required_error: 'Please enter an email.',
+    })
+    .email('Please enter a valid email address.'),
+  image_url: z
+    .string()
+    .refine((val) => {
+      if (!val) return true // 允许空值
+      // 检查是否为相对路径或有效的 URL
+      return (
+        val.startsWith('/') ||
+        val.startsWith('http://') ||
+        val.startsWith('https://')
+      )
+    }, 'Please enter a valid URL or relative path starting with /')
+    .optional(),
+})
+
+const CreateCustomer = CustomerSchema.omit({ id: true })
+
 const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' })
 export async function createInvoice(formData: FormData) {
   console.log('create invoice')
@@ -125,4 +153,61 @@ export async function deleteInvoice(id: string) {
     console.log(error)
   }
   revalidatePath('/dashboard/invoices')
+}
+
+export async function createCustomer(formData: FormData) {
+  const { name, email, image_url } = CreateCustomer.parse({
+    name: formData.get('name'),
+    email: formData.get('email'),
+    image_url: formData.get('image_url'),
+  })
+
+  try {
+    await sql`
+      INSERT INTO customers (name, email, image_url)
+      VALUES (${name}, ${email}, ${
+      image_url || '/customers/default-avatar.png'
+    })
+    `
+  } catch (error) {
+    console.error('Database Error: Failed to create customer: ', error)
+  }
+
+  revalidatePath('/dashboard/customers')
+  redirect('/dashboard/customers')
+}
+
+const UpdateCustomer = CustomerSchema.omit({ id: true })
+
+export async function updateCustomer(id: string, formData: FormData) {
+  const { name, email, image_url } = UpdateCustomer.parse({
+    name: formData.get('name'),
+    email: formData.get('email'),
+    image_url: formData.get('image_url'),
+  })
+
+  try {
+    await sql`
+      UPDATE customers
+      SET name = ${name}, email = ${email}, image_url = ${
+      image_url || '/customers/default-avatar.png'
+    }
+      WHERE id = ${id}
+    `
+  } catch (error) {
+    // log error to console
+    console.error('Database Error: Failed to update customer: ', error)
+  }
+
+  revalidatePath('/dashboard/customers')
+  redirect('/dashboard/customers')
+}
+
+export async function deleteCustomer(id: string) {
+  try {
+    await sql`DELETE FROM customers WHERE id = ${id}`
+  } catch (error) {
+    console.error('Database Error: Failed to delete customer: ', error)
+  }
+  revalidatePath('/dashboard/customers')
 }
