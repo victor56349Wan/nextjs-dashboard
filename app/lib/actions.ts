@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import postgres from 'postgres'
+import bcrypt from 'bcryptjs'
 import { signIn } from '@/auth'
 import { CredentialsSignin } from 'next-auth'
 export async function authenticate(
@@ -95,6 +96,109 @@ const CustomerSchema = z.object({
 })
 
 const CreateCustomer = CustomerSchema.omit({ id: true })
+
+// 密码强度校验的正则表达式
+const passwordRegex = {
+  number: /\d/,
+  upper: /[A-Z]/,
+  lower: /[a-z]/,
+  special: /[!@#$%^&*(),.?":{}|<>]/,
+}
+
+// 构建基本用户模式的函数
+const createBasicUserSchema = () =>
+  z.object({
+    id: z.string(),
+    name: z.string({
+      invalid_type_error: '请输入用户姓名',
+      required_error: '用户姓名不能为空',
+    }),
+    email: z
+      .string({
+        invalid_type_error: '请输入电子邮箱',
+        required_error: '电子邮箱不能为空',
+      })
+      .email('请输入有效的电子邮箱地址'),
+    password: z
+      .string({
+        required_error: '密码不能为空',
+      })
+      .min(8, '密码长度至少为8个字符')
+      .regex(passwordRegex.number, '密码必须包含数字')
+      .regex(passwordRegex.upper, '密码必须包含大写字母')
+      .regex(passwordRegex.lower, '密码必须包含小写字母')
+      .regex(passwordRegex.special, '密码必须包含特殊字符'),
+    passwordConfirm: z.string({
+      required_error: '请确认密码',
+    }),
+    address: z.string().optional(),
+  })
+
+// 基础用户 Schema
+const UserSchema = createBasicUserSchema().refine(
+  (data) => data.password === data.passwordConfirm,
+  {
+    message: '两次输入的密码不一致',
+    path: ['passwordConfirm'],
+  }
+)
+
+// 更新用户时的 Schema，密码相关字段都是可选的
+const UpdateUserSchema = z
+  .object({
+    ...createBasicUserSchema().shape,
+    currentPassword: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    // 如果设置了新密码，则需要验证原密码和确认密码
+    if (data.password || data.passwordConfirm || data.currentPassword) {
+      // 如果有任何与密码相关的字段被填写，则所有字段都必须填写
+      if (!data.currentPassword) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: '修改密码时必须输入原密码',
+          path: ['currentPassword'],
+        })
+      }
+      if (!data.password) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: '请输入新密码',
+          path: ['password'],
+        })
+      }
+      if (!data.passwordConfirm) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: '请确认新密码',
+          path: ['passwordConfirm'],
+        })
+      }
+      // 如果新密码已填写，检查是否匹配
+      if (
+        data.password &&
+        data.passwordConfirm &&
+        data.password !== data.passwordConfirm
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: '两次输入的密码不一致',
+          path: ['passwordConfirm'],
+        })
+      }
+    }
+  })
+
+// 创建用户时的 Schema (不包含 id)
+const CreateUser = createBasicUserSchema().omit({ id: true })
+
+// 更新用户时的 Schema (不包含 id)
+const UpdateUser = z
+  .object({
+    ...UpdateUserSchema.shape,
+  })
+  .omit({ id: true })
+  .partial()
 
 const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' })
 export async function createInvoice(formData: FormData) {
@@ -210,4 +314,136 @@ export async function deleteCustomer(id: string) {
     console.error('Database Error: Failed to delete customer: ', error)
   }
   revalidatePath('/dashboard/customers')
+}
+
+export async function createUser(formData: FormData) {
+  const { name, email, password, address } = CreateUser.parse({
+    name: formData.get('name'),
+    email: formData.get('email'),
+    password: formData.get('password'),
+    passwordConfirm: formData.get('passwordConfirm'),
+    address: formData.get('address'),
+  })
+
+  try {
+    // 对密码进行哈希处理
+    const hashedPassword = await bcrypt.hash(password, 10)
+
+    await sql`
+      INSERT INTO users (name, email, password, address)
+      VALUES (${name}, ${email}, ${hashedPassword}, ${address || null})
+    `
+  } catch (error) {
+    console.error('Database Error: Failed to create user, error: ', error)
+  }
+
+  revalidatePath('/dashboard/users')
+  redirect('/dashboard/users')
+}
+
+export async function updateUser(id: string, formData: FormData) {
+  // 首先获取用户当前的数据作为默认值
+  const currentUser = await sql<
+    { name: string; email: string; address: string | null }[]
+  >`
+    SELECT name, email, address FROM users WHERE id = ${id}
+  `
+
+  if (!currentUser.length) {
+    throw new Error('用户不存在')
+  }
+
+  const current = currentUser[0]
+
+  // 处理表单数据
+  const rawFormData = {
+    name: formData.get('name')?.toString() || current.name,
+    email: formData.get('email')?.toString() || current.email,
+    currentPassword: formData.get('currentPassword')?.toString(),
+    password: formData.get('password')?.toString(),
+    passwordConfirm: formData.get('passwordConfirm')?.toString(),
+    address: formData.get('address')?.toString() ?? current.address,
+  }
+
+  const validatedData = UpdateUser.parse(rawFormData)
+
+  const { name, email, currentPassword, password, address } = validatedData
+
+  try {
+    if (password) {
+      // 获取用户当前的密码哈希
+      const user = await sql<{ password: string }[]>`
+        SELECT password FROM users WHERE id = ${id}
+      `
+
+      if (!user.length) {
+        throw new Error('用户不存在')
+      }
+
+      // 验证原密码
+      const isValid = await bcrypt.compare(currentPassword!, user[0].password)
+      if (!isValid) {
+        throw new Error('原密码不正确')
+      }
+
+      // 对新密码进行哈希处理
+      const hashedPassword = await bcrypt.hash(password, 10)
+
+      // 更新包括密码在内的所有字段
+      await sql`
+        UPDATE users
+        SET name = ${name},
+            email = ${email},
+            address = ${address},
+            password = ${hashedPassword}
+        WHERE id = ${id}
+      `
+    } else {
+      // 如果不修改密码，只更新其他字段
+      const updateFields = []
+      const values = []
+
+      if (name !== undefined) {
+        updateFields.push('name = $1')
+        values.push(name)
+      }
+      if (email !== undefined) {
+        updateFields.push(`email = $${values.length + 1}`)
+        values.push(email)
+      }
+      if (address !== undefined) {
+        updateFields.push(`address = $${values.length + 1}`)
+        values.push(address)
+      }
+
+      if (updateFields.length > 0) {
+        values.push(id)
+        await sql.unsafe(
+          `UPDATE users SET ${updateFields.join(', ')} WHERE id = $${
+            values.length
+          }`,
+          values
+        )
+      }
+    }
+  } catch (error: any) {
+    if (error.message === '原密码不正确') {
+      throw new Error('原密码不正确')
+    }
+    console.error('Database Error: Failed to update user, error: ', error)
+    throw new Error('更新用户信息失败')
+  }
+
+  revalidatePath('/dashboard/users')
+  redirect('/dashboard/users')
+}
+
+export async function deleteUser(id: string) {
+  try {
+    await sql`DELETE FROM users WHERE id = ${id}`
+    revalidatePath('/dashboard/users')
+    redirect('/dashboard/users')
+  } catch (error) {
+    console.error('Database Error: Failed to delete user, error: ', error)
+  }
 }

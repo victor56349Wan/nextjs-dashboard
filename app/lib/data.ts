@@ -7,6 +7,8 @@ import {
   InvoicesTable,
   LatestInvoiceRaw,
   Revenue,
+  UsersTable,
+  UserForm,
 } from './definitions'
 import { formatCurrency } from './utils'
 
@@ -187,8 +189,7 @@ export async function fetchCustomers() {
 
     return customers
   } catch (err) {
-    console.error('Database Error:', err)
-    throw new Error('Failed to fetch all customers.')
+    console.error('Database Failed to fetch all customers, Error:', err)
   }
 }
 
@@ -244,8 +245,7 @@ export async function fetchFilteredCustomers(
 
     return customers
   } catch (err) {
-    console.error('Database Error:', err)
-    throw new Error('Failed to fetch customer table.')
+    console.error('Database Failed to fetch customer table, error:', err)
   }
 }
 
@@ -267,7 +267,66 @@ export async function fetchCustomerById(id: string) {
 
     return customer[0]
   } catch (error) {
+    console.error('Database Failed to fetch customer, error:', error)
+  }
+}
+
+export async function fetchFilteredUsers(query: string, currentPage: number) {
+  const offset = (currentPage - 1) * ITEMS_PER_PAGE
+
+  try {
+    const users = await sql<UsersTable[]>`
+      SELECT
+        id,
+        name,
+        email,
+        address
+      FROM users
+      WHERE
+        name ILIKE ${`%${query}%`} OR
+        email ILIKE ${`%${query}%`} OR
+        address ILIKE ${`%${query}%`}
+      ORDER BY name ASC
+      LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
+    `
+    return users
+  } catch (error) {
+    console.error('Database Failed to fetch users, Error:', error)
+  }
+}
+
+export async function fetchUserById(id: string) {
+  try {
+    const user = await sql<UserForm[]>`
+      SELECT
+        id,
+        name,
+        email,
+        address
+      FROM users
+      WHERE id = ${id};
+    `
+    return user[0]
+  } catch (error) {
     console.error('Database Error:', error)
-    throw new Error('Failed to fetch customer.')
+    throw new Error('Failed to fetch user.')
+  }
+}
+
+export async function fetchUsersPages(query: string) {
+  try {
+    const count = await sql`SELECT COUNT(*)
+      FROM users
+      WHERE
+        name ILIKE ${`%${query}%`} OR
+        email ILIKE ${`%${query}%`} OR
+        address ILIKE ${`%${query}%`}
+    `
+
+    const totalPages = Math.ceil(Number(count[0].count) / ITEMS_PER_PAGE)
+    return totalPages
+  } catch (error) {
+    console.error('Database Error:', error)
+    throw new Error('Failed to fetch total number of users.')
   }
 }
