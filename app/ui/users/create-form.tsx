@@ -8,7 +8,7 @@ export default function CreateUserForm() {
         {/* 用户姓名 */}
         <div className="mb-4">
           <label htmlFor="name" className="mb-2 block text-sm font-medium">
-            用户姓名
+            Name
           </label>
           <div className="relative mt-2 rounded-md">
             <div className="relative">
@@ -16,7 +16,7 @@ export default function CreateUserForm() {
                 id="name"
                 name="name"
                 type="text"
-                placeholder="请输入用户姓名"
+                placeholder="Enter user name"
                 className="peer block w-full rounded-md border border-gray-200 py-2 text-sm outline-2 placeholder:text-gray-500"
                 required
               />
@@ -27,7 +27,7 @@ export default function CreateUserForm() {
         {/* 电子邮箱 */}
         <div className="mb-4">
           <label htmlFor="email" className="mb-2 block text-sm font-medium">
-            电子邮箱
+            Email
           </label>
           <div className="relative mt-2 rounded-md">
             <div className="relative">
@@ -35,7 +35,7 @@ export default function CreateUserForm() {
                 id="email"
                 name="email"
                 type="email"
-                placeholder="请输入电子邮箱"
+                placeholder="Enter email address"
                 className="peer block w-full rounded-md border border-gray-200 py-2 text-sm outline-2 placeholder:text-gray-500"
                 required
               />
@@ -46,7 +46,7 @@ export default function CreateUserForm() {
         {/* 密码 */}
         <div className="mb-4">
           <label htmlFor="password" className="mb-2 block text-sm font-medium">
-            密码
+            Password
           </label>
           <div className="relative mt-2 rounded-md">
             <div className="relative">
@@ -54,13 +54,14 @@ export default function CreateUserForm() {
                 id="password"
                 name="password"
                 type="password"
-                placeholder="请输入密码"
+                placeholder="Enter password"
                 className="peer block w-full rounded-md border border-gray-200 py-2 text-sm outline-2 placeholder:text-gray-500"
                 required
                 minLength={8}
               />
               <div className="mt-1 text-xs text-gray-500">
-                密码必须包含：大写字母、小写字母、数字和特殊字符，长度至少8位
+                Password must contain: uppercase, lowercase, number, and special
+                character. Minimum 8 characters.
               </div>
             </div>
           </div>
@@ -71,7 +72,7 @@ export default function CreateUserForm() {
           <label
             htmlFor="passwordConfirm"
             className="mb-2 block text-sm font-medium">
-            确认密码
+            Confirm Password
           </label>
           <div className="relative mt-2 rounded-md">
             <div className="relative">
@@ -79,7 +80,7 @@ export default function CreateUserForm() {
                 id="passwordConfirm"
                 name="passwordConfirm"
                 type="password"
-                placeholder="请再次输入密码"
+                placeholder="Confirm password"
                 className="peer block w-full rounded-md border border-gray-200 py-2 text-sm outline-2 placeholder:text-gray-500"
                 required
                 minLength={8}
@@ -91,7 +92,7 @@ export default function CreateUserForm() {
         {/* 地址 */}
         <div className="mb-4">
           <label htmlFor="address" className="mb-2 block text-sm font-medium">
-            地址
+            Address
           </label>
           <div className="relative mt-2 rounded-md">
             <div className="relative">
@@ -99,7 +100,7 @@ export default function CreateUserForm() {
                 id="address"
                 name="address"
                 type="text"
-                placeholder="请输入地址（可选）"
+                placeholder="Enter address (optional)"
                 className="peer block w-full rounded-md border border-gray-200 py-2 text-sm outline-2 placeholder:text-gray-500"
               />
             </div>
@@ -107,8 +108,8 @@ export default function CreateUserForm() {
         </div>
       </div>
       <div className="mt-6 flex justify-end gap-4">
-        <Button href="/dashboard/users">取消</Button>
-        <Button type="submit">创建用户</Button>
+        <Button href="/dashboard/users">Cancel</Button>
+        <Button type="submit">Create User</Button>
       </div>
     </form>
   )

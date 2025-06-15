@@ -11,7 +11,7 @@ export default function EditUserForm({ user }: { user: UserForm }) {
         {/* 用户姓名 */}
         <div className="mb-4">
           <label htmlFor="name" className="mb-2 block text-sm font-medium">
-            用户姓名
+            Name
           </label>
           <div className="relative mt-2 rounded-md">
             <div className="relative">
@@ -20,7 +20,7 @@ export default function EditUserForm({ user }: { user: UserForm }) {
                 name="name"
                 type="text"
                 defaultValue={user.name}
-                placeholder="请输入用户姓名"
+                placeholder="Enter user name"
                 className="peer block w-full rounded-md border border-gray-200 py-2 text-sm outline-2 placeholder:text-gray-500"
                 required
               />
@@ -31,7 +31,7 @@ export default function EditUserForm({ user }: { user: UserForm }) {
         {/* 电子邮箱 */}
         <div className="mb-4">
           <label htmlFor="email" className="mb-2 block text-sm font-medium">
-            电子邮箱
+            Email
           </label>
           <div className="relative mt-2 rounded-md">
             <div className="relative">
@@ -40,7 +40,7 @@ export default function EditUserForm({ user }: { user: UserForm }) {
                 name="email"
                 type="email"
                 defaultValue={user.email}
-                placeholder="请输入电子邮箱"
+                placeholder="Enter email address"
                 className="peer block w-full rounded-md border border-gray-200 py-2 text-sm outline-2 placeholder:text-gray-500"
                 required
               />
@@ -53,7 +53,7 @@ export default function EditUserForm({ user }: { user: UserForm }) {
           <label
             htmlFor="currentPassword"
             className="mb-2 block text-sm font-medium">
-            当前密码
+            Current Password
           </label>
           <div className="relative mt-2 rounded-md">
             <div className="relative">
@@ -61,7 +61,7 @@ export default function EditUserForm({ user }: { user: UserForm }) {
                 id="currentPassword"
                 name="currentPassword"
                 type="password"
-                placeholder="如需修改密码，请输入当前密码"
+                placeholder="Enter current password to change"
                 className="peer block w-full rounded-md border border-gray-200 py-2 text-sm outline-2 placeholder:text-gray-500"
               />
             </div>
@@ -71,7 +71,7 @@ export default function EditUserForm({ user }: { user: UserForm }) {
         {/* 新密码 */}
         <div className="mb-4">
           <label htmlFor="password" className="mb-2 block text-sm font-medium">
-            新密码
+            New Password
           </label>
           <div className="relative mt-2 rounded-md">
             <div className="relative">
@@ -79,12 +79,13 @@ export default function EditUserForm({ user }: { user: UserForm }) {
                 id="password"
                 name="password"
                 type="password"
-                placeholder="若不修改密码请留空"
+                placeholder="Leave blank if not changing"
                 className="peer block w-full rounded-md border border-gray-200 py-2 text-sm outline-2 placeholder:text-gray-500"
                 minLength={8}
               />
               <div className="mt-1 text-xs text-gray-500">
-                密码必须包含：大写字母、小写字母、数字和特殊字符，长度至少8位
+                Password must contain: uppercase, lowercase, number, and special
+                character. Minimum 8 characters.
               </div>
             </div>
           </div>
@@ -95,7 +96,7 @@ export default function EditUserForm({ user }: { user: UserForm }) {
           <label
             htmlFor="passwordConfirm"
             className="mb-2 block text-sm font-medium">
-            确认新密码
+            Confirm New Password
           </label>
           <div className="relative mt-2 rounded-md">
             <div className="relative">
@@ -103,7 +104,7 @@ export default function EditUserForm({ user }: { user: UserForm }) {
                 id="passwordConfirm"
                 name="passwordConfirm"
                 type="password"
-                placeholder="请再次输入新密码"
+                placeholder="Confirm new password"
                 className="peer block w-full rounded-md border border-gray-200 py-2 text-sm outline-2 placeholder:text-gray-500"
                 minLength={8}
               />
@@ -114,7 +115,7 @@ export default function EditUserForm({ user }: { user: UserForm }) {
         {/* 地址 */}
         <div className="mb-4">
           <label htmlFor="address" className="mb-2 block text-sm font-medium">
-            地址
+            Address
           </label>
           <div className="relative mt-2 rounded-md">
             <div className="relative">
@@ -123,7 +124,7 @@ export default function EditUserForm({ user }: { user: UserForm }) {
                 name="address"
                 type="text"
                 defaultValue={user.address}
-                placeholder="请输入地址（可选）"
+                placeholder="Enter address (optional)"
                 className="peer block w-full rounded-md border border-gray-200 py-2 text-sm outline-2 placeholder:text-gray-500"
               />
             </div>
@@ -131,8 +132,8 @@ export default function EditUserForm({ user }: { user: UserForm }) {
         </div>
       </div>
       <div className="mt-6 flex justify-end gap-4">
-        <Button href="/dashboard/users">取消</Button>
-        <Button type="submit">保存修改</Button>
+        <Button href="/dashboard/users">Cancel</Button>
+        <Button type="submit">Save Changes</Button>
       </div>
     </form>
   )

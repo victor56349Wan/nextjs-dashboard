@@ -21,13 +21,13 @@ export default async function UsersTable({
                 className="mb-2 w-full rounded-md bg-white p-4">
                 <div className="flex items-center justify-between border-b pb-4">
                   <div>
-                    <p className="text-sm text-gray-500">姓名</p>
+                    <p className="text-sm text-gray-500">Name</p>
                     <p className="truncate text-sm font-medium">{user.name}</p>
                   </div>
                 </div>
                 <div className="flex w-full items-center justify-between pt-4">
                   <div>
-                    <p className="text-sm text-gray-500">电子邮箱</p>
+                    <p className="text-sm text-gray-500">Email</p>
                     <p className="truncate text-sm font-medium">{user.email}</p>
                   </div>
                   <div className="flex justify-end gap-2">
@@ -42,16 +42,16 @@ export default async function UsersTable({
             <thead className="rounded-lg text-left text-sm font-normal">
               <tr>
                 <th scope="col" className="px-4 py-5 font-medium sm:pl-6">
-                  姓名
+                  Name
                 </th>
                 <th scope="col" className="px-3 py-5 font-medium">
-                  电子邮箱
+                  Email
                 </th>
                 <th scope="col" className="px-3 py-5 font-medium">
-                  地址
+                  Address
                 </th>
                 <th scope="col" className="relative py-3 pl-6 pr-3">
-                  <span className="sr-only">操作</span>
+                  <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
