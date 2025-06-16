@@ -8,6 +8,9 @@ export type User = {
   email: string
   password: string
   address?: string // added for siwe provider
+  chainId?: number
+  wechat_id?: string // WeChat unique identifier
+  wechat_openid?: string // WeChat platform OpenID
 }
 
 export type Customer = {

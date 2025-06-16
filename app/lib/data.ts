@@ -210,7 +210,7 @@ export async function fetchCustomersPages(query: string) {
   }
 }
 
-// 更新 fetchFilteredCustomers 函数支持分页
+// Update fetchFilteredCustomers function to support pagination
 export async function fetchFilteredCustomers(
   query: string,
   currentPage: number

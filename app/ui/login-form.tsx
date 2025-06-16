@@ -10,20 +10,39 @@ import { Button } from './button'
 import { useActionState } from 'react'
 import { authenticate } from '@/app/lib/actions'
 import { useSearchParams } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useToast } from './toast'
+import { signIn } from 'next-auth/react'
+import Image from 'next/image'
 
 export default function LoginForm() {
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
-  const siweError = searchParams.get('error') || ''
-  const errorCode = searchParams.get('code') || ''
+  const [callbackUrl, setCallbackUrl] = useState('/dashboard')
+  const [siweError, setSiweError] = useState('')
+  const [errorCode, setErrorCode] = useState('')
+
   const [errorMessage, formAction, isPending] = useActionState(
     authenticate,
     undefined
   )
 
   const { showToast } = useToast()
+
+  // 处理微信登录
+  const handleWechatLogin = async () => {
+    try {
+      await signIn('wechat', { callbackUrl })
+    } catch (error) {
+      showToast('Failed to login with WeChat', 'error')
+      console.error('WeChat login error:', error)
+    }
+  }
+  // advice from copilot for hydration failure: 避免 SSR/CSR 不一致
+  useEffect(() => {
+    setCallbackUrl(searchParams.get('callbackUrl') || '/dashboard')
+    setSiweError(searchParams.get('error') || '')
+    setErrorCode(searchParams.get('code') || '')
+  }, [searchParams])
 
   // 处理 SIWE 错误
   useEffect(() => {
@@ -34,6 +53,9 @@ export default function LoginForm() {
 
   return (
     <div>
+      <div className="absolute top-0 right-0 p-5 ">
+        <appkit-button size="md" />
+      </div>
       <form action={formAction} className="space-y-3">
         <div className="flex-1 rounded-lg bg-gray-50 px-6 pb-4 pt-8">
           <h1 className={`${lusitana.className} mb-3 text-2xl`}>
@@ -83,6 +105,34 @@ export default function LoginForm() {
           <Button className="mt-4 w-full" aria-disabled={isPending}>
             Log in <ArrowRightIcon className="ml-auto h-5 w-5 text-gray-50" />
           </Button>
+
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-gray-50 px-2 text-gray-500">
+                Or continue with
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleWechatLogin}
+            className="flex w-full items-center justify-center gap-3 rounded-md bg-green-500 px-3 py-2 text-white hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              fill="currentColor"
+              viewBox="0 0 16 16">
+              <path d="M11.22 8.123a.627.627 0 0 0-.623-.622.622.622 0 0 0 0 1.244.627.627 0 0 0 .623-.622zm-4.487 0a.627.627 0 0 0-.622-.622.627.627 0 0 0-.623.622.622.622 0 0 0 1.245 0z" />
+              <path d="M14.425 8.12c0-2.355-2.349-4.278-5.236-4.278-2.886 0-5.236 1.923-5.236 4.278 0 2.356 2.35 4.278 5.236 4.278.615 0 1.212-.09 1.78-.245l1.623.953-.42-1.577c1.377-.837 2.253-2.084 2.253-3.41zm-7.246-1.757a.777.777 0 0 1-.773.772.776.776 0 0 1-.772-.772c0-.426.347-.773.772-.773.426 0 .773.347.773.773zm4.07 0a.776.776 0 0 1-.773.772.777.777 0 0 1-.772-.772c0-.426.347-.773.772-.773.427 0 .773.347.773.773zM12.844 0H3.156A3.156 3.156 0 0 0 0 3.156v9.688A3.156 3.156 0 0 0 3.156 16h9.688A3.156 3.156 0 0 0 16 12.844V3.156A3.156 3.156 0 0 0 12.844 0z" />
+            </svg>
+            Log in with WeChat
+          </button>
+
           <div className="flex h-8 items-end space-x-1">
             {/* Add form errors here */}
             {errorMessage && (
