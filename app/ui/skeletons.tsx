@@ -348,16 +348,16 @@ export function UsersTableSkeleton() {
             <thead className="rounded-lg text-left text-sm font-normal">
               <tr>
                 <th scope="col" className="px-4 py-5 font-medium sm:pl-6">
-                  姓名
+                  Name
                 </th>
                 <th scope="col" className="px-3 py-5 font-medium">
-                  电子邮箱
+                  Email
                 </th>
                 <th scope="col" className="px-3 py-5 font-medium">
-                  地址
+                  Address
                 </th>
                 <th scope="col" className="relative py-3 pl-6 pr-3">
-                  <span className="sr-only">操作</span>
+                  <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>

@@ -12,8 +12,9 @@ import {
   getAddressFromMessage,
 } from '@reown/appkit-siwe'
 import { createPublicClient, http } from 'viem'
+import WeChatProvider from 'next-auth/providers/wechat'
 
-// SIWE 认证相关错误类型
+// SIWE related error types
 enum AuthErrorType {
   SIGNATURE_INVALID = 'SIGNATURE_INVALID',
   USER_NOT_FOUND = 'USER_NOT_FOUND',
@@ -27,7 +28,7 @@ class CredentialsSigninError extends CredentialsSignin {
   }
 }
 
-// 扩展 NextAuth 的类型定义
+// Extend NextAuth type definitions
 declare module 'next-auth' {
   interface Session extends SIWESession {
     address: string | null
@@ -36,6 +37,7 @@ declare module 'next-auth' {
       id: string
       email?: string | null
       address?: string | null
+      wechatId?: string | null
     }
   }
 
@@ -44,15 +46,25 @@ declare module 'next-auth' {
     email?: string | null
     address?: string | null
     chainId?: number | null
+    wechatId?: string | null
   }
 }
+
+// JWT interface extension
+declare module 'next-auth/jwt' {
+  interface JWT {
+    userId?: string
+    wechatId?: string
+  }
+}
+
 const sql = postgres(process.env.POSTGRES_URL!, {
   ssl: 'require',
-  max: 10, // 连接池最大连接数
-  idle_timeout: 20, // 空闲连接超时(秒)
-  connect_timeout: 10, // 连接超时(秒)
-  max_lifetime: 60 * 30, // 连接最大生命周期(秒)
-  //max_retries: 3, // 查询失败重试次数
+  max: 10, // Maximum number of connections in pool
+  idle_timeout: 20, // Idle connection timeout (seconds)
+  connect_timeout: 10, // Connection timeout (seconds)
+  max_lifetime: 60 * 30, // Maximum connection lifetime (seconds)
+  //max_retries: 3, // Number of retries for failed queries
 })
 
 async function getUser(email: string): Promise<User | undefined> {
@@ -151,19 +163,33 @@ function logWithTimestamp(message: string, ...args: any[]) {
   const timestamp = new Date().toISOString()
   console.log(`[${timestamp}] ${message}`, ...args)
 }
-/*
+/**
  * !!! need to distribute auth config bwtn auth.ts and middleware.ts  carefully w/ below constraints found so far
  *
+ https://amazing-accurately-penguin.ngrok-free.app/api/auth/callback/wechat
+ http://localhost:3000/api/auth/callback/wechat
  */
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   secret: nextAuthSecret,
   pages: {
     signIn: '/login',
-    error: '/auth/error',
   },
 
   providers: [
+    WeChatProvider({
+      clientId: process.env.WECHAT_CLIENT_ID as string,
+      clientSecret: process.env.WECHAT_CLIENT_SECRET as string,
+      /**
+       *  Notes: 
+       *  1, have to do web authentication in wechat app(or wechat web dev tool, as depicted in https://github.com/nextauthjs/next-auth/pull/10236),
+       *   or will see 'Oops! Something went wrong error ' when clicking 'Log in with Wechat' button from regular PC browser
+       *  2, adding '#wechat_redirect' in URL will lead to no response after clicking wechat login button
+      platformType: 'WebsiteApp',
+      authorization: {
+        url: 'https://open.weixin.qq.com/connect/oauth2/authorize#wechat_redirect',
+      }, */
+    }),
     credentialsProvider({
       id: 'credentials',
       name: 'Email',
@@ -280,4 +306,72 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
+  callbacks: {
+    async jwt({ token, account, user }) {
+      // 初始登录
+      logWithTimestamp(
+        'Callback jwt, token: ',
+        token,
+        'account: ',
+        account,
+        'user: ',
+        user
+      )
+      if (account && user) {
+        /*        if (account.provider === 'wechat') {
+          // 微信登录，处理微信用户信息
+          const dbUser = await getUserByWechatId(user.id as string)
+
+          // 如果用户在数据库中不存在，创建新用户
+          if (!dbUser) {
+            // 这里应该添加创建用户的逻辑
+            console.log('Creating new user with WeChat info:', user)
+
+            // 示例创建用户逻辑
+            await createUser({
+              name: user.name || '',
+              email: user.email || '',
+              wechatId: user.id,
+              wechatOpenId: account.providerAccountId,
+            })
+          }
+        } */
+
+        return {
+          ...token,
+          userId: user.id,
+          wechatId:
+            account.provider === 'wechat'
+              ? account.providerAccountId
+              : undefined,
+        }
+      }
+      return token
+    },
+
+    async session({ session, token }) {
+      logWithTimestamp('Callback session, token: ', token, 'session: ', session)
+      if (session.user) {
+        session.user.id = token.userId as string
+        if (token.wechatId) {
+          session.user.wechatId = token.wechatId as string
+        }
+      }
+      return session
+    },
+  },
 })
+
+// 根据微信ID获取用户函数
+async function getUserByWechatId(wechatId: string) {
+  try {
+    const user = await sql`
+      SELECT * FROM users 
+      WHERE wechat_id = ${wechatId}
+    `
+    return user[0] || null
+  } catch (error) {
+    console.error('Database error:', error)
+    throw new Error('Failed to fetch user by wechat id.')
+  }
+}

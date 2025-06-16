@@ -84,8 +84,8 @@ const CustomerSchema = z.object({
   image_url: z
     .string()
     .refine((val) => {
-      if (!val) return true // 允许空值
-      // 检查是否为相对路径或有效的 URL
+      if (!val) return true // Allow empty value
+      // Check if it's a relative path or valid URL
       return (
         val.startsWith('/') ||
         val.startsWith('http://') ||
@@ -97,7 +97,7 @@ const CustomerSchema = z.object({
 
 const CreateCustomer = CustomerSchema.omit({ id: true })
 
-// 密码强度校验的正则表达式
+// Password strength validation regular expressions
 const passwordRegex = {
   number: /\d/,
   upper: /[A-Z]/,
@@ -105,7 +105,7 @@ const passwordRegex = {
   special: /[!@#$%^&*(),.?":{}|<>]/,
 }
 
-// 构建基本用户模式的函数
+// Function to build basic user schema
 const createBasicUserSchema = () =>
   z.object({
     id: z.string(),
@@ -146,7 +146,7 @@ const UserSchema = createBasicUserSchema().refine(
   }
 )
 
-// 更新用户时的 Schema，密码相关字段都是可选的
+// When updating user, all password-related fields are optional
 const UpdateUserSchema = z
   .object({
     ...createBasicUserSchema().shape,
@@ -189,7 +189,7 @@ const UpdateUserSchema = z
     }
   })
 
-// 创建用户时的 Schema (不包含 id)
+// Schema for creating user (without id)
 const CreateUser = createBasicUserSchema().omit({ id: true })
 
 // 更新用户时的 Schema (不包含 id)

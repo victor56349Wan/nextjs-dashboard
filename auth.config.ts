@@ -65,6 +65,7 @@ export const authConfig = {
         if (token && token.sub) {
           // 确保会话中包含完整的用户信息
           const [, chainId, address] = token.sub.split(':')
+          // TODO::  better to validate chainId & address to distinguish SIWE with other providers using sub in token
           if (chainId && address) {
             const userInfo = {
               ...session.user,
