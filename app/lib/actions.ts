@@ -197,10 +197,11 @@ const UpdateUserSchema = z
 // Schema for creating user (without id)
 const CreateUser = createBasicUserSchema().omit({ id: true })
 
-// 更新用户时的 Schema (不包含 id)
+// 更新用户时的 Schema (不包含 id) - recreate from base schema instead of using UpdateUserSchema.shape
 const UpdateUser = z
   .object({
-    ...UpdateUserSchema.shape,
+    ...createBasicUserSchema().shape,
+    currentPassword: z.string().optional(),
   })
   .omit({ id: true })
   .partial()
@@ -469,9 +470,9 @@ export async function updateUser(id: string, formData: FormData) {
 export async function deleteUser(id: string) {
   try {
     await sql`DELETE FROM users WHERE id = ${id}`
-    revalidatePath('/dashboard/users')
-    redirect('/dashboard/users')
   } catch (error) {
     console.error('Database Error: Failed to delete user, error: ', error)
   }
+  revalidatePath('/dashboard/users')
+  redirect('/dashboard/users')
 }

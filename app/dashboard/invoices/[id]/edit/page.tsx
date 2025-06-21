@@ -19,9 +19,13 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
     fetchInvoiceById(id),
     fetchCustomers(),
   ])
+
   if (!invoice) {
     notFound()
   }
+
+  // Ensure customers is always an array
+  const safeCustomers = customers || []
   return (
     <main>
       <Breadcrumbs
@@ -34,7 +38,7 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
           },
         ]}
       />
-      <Form invoice={invoice} customers={customers} />
+      <Form invoice={invoice} customers={safeCustomers} />
     </main>
   )
 }

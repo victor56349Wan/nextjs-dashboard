@@ -9,6 +9,9 @@ export const metadata: Metadata = {
 export default async function Page() {
   const customers = await fetchCustomers()
 
+  // Ensure customers is always an array
+  const safeCustomers = customers || []
+
   return (
     <main>
       <Breadcrumbs
@@ -21,7 +24,7 @@ export default async function Page() {
           },
         ]}
       />
-      <Form customers={customers} />
+      <Form customers={safeCustomers} />
     </main>
   )
 }

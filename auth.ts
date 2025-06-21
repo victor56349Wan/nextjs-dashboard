@@ -50,16 +50,6 @@ declare module 'next-auth' {
   }
 }
 
-// JWT interface extension
-declare module 'next-auth/jwt' {
-  interface JWT {
-    userId?: string
-    address?: string
-    chainId?: number
-    wechatId?: string
-  }
-}
-
 const sql = postgres(process.env.POSTGRES_URL!, {
   ssl: 'require',
   max: 10, // Maximum number of connections in pool

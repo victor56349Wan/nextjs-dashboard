@@ -190,6 +190,7 @@ export async function fetchCustomers() {
     return customers
   } catch (err) {
     console.error('Database Failed to fetch all customers, Error:', err)
+    return [] // Return empty array instead of undefined
   }
 }
 
@@ -246,6 +247,7 @@ export async function fetchFilteredCustomers(
     return customers
   } catch (err) {
     console.error('Database Failed to fetch customer table, error:', err)
+    return [] // Return empty array instead of undefined
   }
 }
 
