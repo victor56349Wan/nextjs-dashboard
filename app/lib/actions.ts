@@ -33,27 +33,32 @@ export async function authenticate(
       return 'Authentication failed, please try again later'
     }
   } catch (error: any) {
-    console.error(
-      'Authentication process error:',
-      error,
-      'type of error',
-      typeof error
-    )
-    if (error instanceof CredentialsSignin) {
-      // Access specific error propertie
-      console.log('type: ', error.type) // Error type
-      console.log('msg: ', error.message) // Error message
-      console.log('code: ', error.code) // Error code
-      // Return the error code directly as it contains our custom error message
+    // If it's a NEXT_REDIRECT error, just rethrow it to let Next.js handle the redirect
+    if (!(error instanceof Error && error.message === 'NEXT_REDIRECT')) {
+      console.error('Authentication process error:', error)
+      if (error instanceof CredentialsSignin) {
+        // Access specific error properties
+        console.log('type: ', error.type) // Error type
+        console.log('msg: ', error.message) // Error message
+        console.log('code: ', error.code) // Error code
+        // Return the error code directly as it contains our custom error message
+        return error.code || 'Authentication failed'
+      }
+      // for non customized error
       return error.code || 'Authentication failed'
     }
     /* 
-    also an error in case of auth OK, log as below:
+    also an error: NEXT_REDIRECT in case of auth OK, log as below:
     ---
     Email auth - Authentication successful
     Authentication process error: Error: NEXT_REDIRECT
     ---
     just having to throw it will let the framework works well!
+
+    console.log('msg: ', error.message) // Error message
+    console.log('name: ', error.name) // Error name
+    msg:  NEXT_REDIRECT
+    name:  Error
     */
     throw error
   }

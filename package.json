@@ -3,7 +3,9 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev --turbopack",
-    "start": "next start"
+    "start": "next start",
+    "cleanup": "./scripts/cleanup-ports.sh",
+    "dev:clean": "pnpm run cleanup && pnpm run dev"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
