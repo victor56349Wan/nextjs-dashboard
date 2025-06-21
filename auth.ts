@@ -54,6 +54,8 @@ declare module 'next-auth' {
 declare module 'next-auth/jwt' {
   interface JWT {
     userId?: string
+    address?: string
+    chainId?: number
     wechatId?: string
   }
 }
@@ -62,15 +64,22 @@ const sql = postgres(process.env.POSTGRES_URL!, {
   ssl: 'require',
   max: 10, // Maximum number of connections in pool
   idle_timeout: 20, // Idle connection timeout (seconds)
-  connect_timeout: 10, // Connection timeout (seconds)
+  connect_timeout: 15, // Connection timeout (seconds) - reduced from 30
   max_lifetime: 60 * 30, // Maximum connection lifetime (seconds)
-  //max_retries: 3, // Number of retries for failed queries
+  transform: {
+    undefined: null, // Transform undefined to null for PostgreSQL
+  },
 })
 
 async function getUser(email: string): Promise<User | undefined> {
   try {
     logWithTimestamp(`Querying user with email: ${email}`)
-    const user = await sql<User[]>`SELECT * FROM users WHERE email=${email}`
+
+    const user = await retryWithBackoff(
+      () => sql<User[]>`SELECT * FROM users WHERE email=${email}`,
+      2, // Reduced to 2 retries for faster response
+      500 // 500ms initial delay
+    )
 
     if (user.length === 0) {
       logWithTimestamp('User not found with email:', email)
@@ -83,14 +92,22 @@ async function getUser(email: string): Promise<User | undefined> {
     logWithTimestamp('Database query error:', error)
     // Handle different types of database errors
     if (error instanceof Error) {
-      if (error.message.includes('connection')) {
+      const errorMessage = (error as any).message || 'Unknown error'
+      if (errorMessage.includes('CONNECT_TIMEOUT')) {
+        throw new CredentialsSigninError(
+          AuthErrorType.DATABASE_ERROR +
+            ': ' +
+            'Database connection timeout. Please check your internet connection and try again.'
+        )
+      }
+      if (errorMessage.includes('connection')) {
         throw new CredentialsSigninError(
           AuthErrorType.DATABASE_ERROR +
             ': ' +
             'Database connection failed, please try again later'
         )
       }
-      if (error.message.includes('timeout')) {
+      if (errorMessage.includes('timeout')) {
         throw new CredentialsSigninError(
           AuthErrorType.DATABASE_ERROR +
             ': ' +
@@ -109,7 +126,12 @@ async function getUser(email: string): Promise<User | undefined> {
 async function getUserByAddress(address: string): Promise<User | undefined> {
   try {
     logWithTimestamp(`Querying user with wallet address: ${address}`)
-    const user = await sql<User[]>`SELECT * FROM users WHERE address=${address}`
+
+    const user = await retryWithBackoff(
+      () => sql<User[]>`SELECT * FROM users WHERE address=${address}`,
+      2, // Reduced to 2 retries for faster response
+      500 // 500ms initial delay
+    )
 
     if (user.length === 0) {
       logWithTimestamp('User not found with wallet address:', address)
@@ -125,14 +147,22 @@ async function getUserByAddress(address: string): Promise<User | undefined> {
     logWithTimestamp('Database query error:', error)
     // Handle different types of database errors
     if (error instanceof Error) {
-      if (error.message.includes('connection')) {
+      const errorMessage = (error as any).message || 'Unknown error'
+      if (errorMessage.includes('CONNECT_TIMEOUT')) {
+        throw new CredentialsSigninError(
+          AuthErrorType.DATABASE_ERROR +
+            ': ' +
+            'Database connection timeout. Please check your internet connection and try again.'
+        )
+      }
+      if (errorMessage.includes('connection')) {
         throw new CredentialsSigninError(
           AuthErrorType.DATABASE_ERROR +
             ': ' +
             'Database connection failed, please try again later'
         )
       }
-      if (error.message.includes('timeout')) {
+      if (errorMessage.includes('timeout')) {
         throw new CredentialsSigninError(
           AuthErrorType.DATABASE_ERROR +
             ': ' +
@@ -163,6 +193,48 @@ function logWithTimestamp(message: string, ...args: any[]) {
   const timestamp = new Date().toISOString()
   console.log(`[${timestamp}] ${message}`, ...args)
 }
+
+// Database retry helper function with optimized timing
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  initialDelay: number = 500
+): Promise<T> {
+  let lastError: Error
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (error) {
+      lastError = error as Error
+
+      // Log the attempt with more details
+      logWithTimestamp(
+        `Database attempt ${attempt}/${maxRetries} failed:`,
+        (error as any).code || 'UNKNOWN_ERROR'
+      )
+
+      if (attempt === maxRetries) {
+        logWithTimestamp(
+          `All ${maxRetries} attempts failed. Final error:`,
+          error
+        )
+        throw error
+      }
+
+      // Use linear backoff for database connections (not exponential)
+      // This is better for connection timeouts
+      const delay = initialDelay * attempt // Linear: 500ms, 1000ms, 1500ms
+      logWithTimestamp(
+        `Retrying in ${delay}ms... (attempt ${attempt + 1}/${maxRetries})`
+      )
+      await new Promise((resolve) => setTimeout(resolve, delay))
+    }
+  }
+
+  throw lastError!
+}
+
 /**
  * !!! need to distribute auth config bwtn auth.ts and middleware.ts  carefully w/ below constraints found so far
  *
@@ -281,10 +353,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (isValid) {
             const user = {
               ...dbUser,
-              id: `${chainId}:${address}`,
               // !!! id is relevant in authorize() return value as being passed in token
-              //address: address,
-              //chainId: parseInt(chainId.split(':')[1]),
+              id: `${chainId}:${address}`,
+              name: dbUser.name,
+              email: dbUser.email,
+              image: dbUser.image,
+              address: dbUser.address,
+              chainId: dbUser.chainId || parseInt(chainId.split(':')[1]),
             }
             logWithTimestamp(
               'SIWE authorize() - Authentication successful:',
@@ -308,7 +383,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async jwt({ token, account, user }) {
-      // 初始登录
       logWithTimestamp(
         'Callback jwt, token: ',
         token,
@@ -317,46 +391,84 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         'user: ',
         user
       )
+
+      // Initial login with account and user data
       if (account && user) {
-        /*        if (account.provider === 'wechat') {
-          // 微信登录，处理微信用户信息
-          const dbUser = await getUserByWechatId(user.id as string)
-
-          // 如果用户在数据库中不存在，创建新用户
-          if (!dbUser) {
-            // 这里应该添加创建用户的逻辑
-            console.log('Creating new user with WeChat info:', user)
-
-            // 示例创建用户逻辑
-            await createUser({
-              name: user.name || '',
-              email: user.email || '',
-              wechatId: user.id,
-              wechatOpenId: account.providerAccountId,
-            })
+        if (account.provider === 'wechat') {
+          //   // 微信登录，处理微信用户信息
+          //   const dbUser = await getUserByWechatId(user.id as string)
+          //   // 如果用户在数据库中不存在，创建新用户
+          //   if (!dbUser) {
+          //     // 这里应该添加创建用户的逻辑
+          //     console.log('Creating new user with WeChat info:', user)
+          //     // 示例创建用户逻辑
+          //     await createUser({
+          //       name: user.name || '',
+          //       email: user.email || '',
+          //       wechatId: user.id,
+          //       wechatOpenId: account.providerAccountId,
+          //     })
+          //   }
+          return {
+            ...token,
+            userId: user.id,
+            name: user.name,
+            email: user.email,
+            image: user.image,
+            wechatId: account.providerAccountId,
           }
-        } */
-
-        return {
-          ...token,
-          userId: user.id,
-          wechatId:
-            account.provider === 'wechat'
-              ? account.providerAccountId
-              : undefined,
+        } else if (account.provider === 'siwe') {
+          // SIWE login - parse chainId and address from user.id
+          const [, chainId, address] = user.id.split(':')
+          return {
+            ...token,
+            userId: user.id,
+            name: user.name,
+            email: user.email,
+            image: user.image,
+            address: address,
+            chainId: parseInt(chainId),
+          }
         }
       }
+
+      // Subsequent requests - token already contains all necessary data
+      // Just return the existing token to preserve session data
+      logWithTimestamp(
+        'Callback jwt output (subsequent request), token: ',
+        token
+      )
       return token
     },
-
     async session({ session, token }) {
       logWithTimestamp('Callback session, token: ', token, 'session: ', session)
-      if (session.user) {
-        session.user.id = token.userId as string
+
+      // Populate session with token data if available
+      if (session.user && token) {
+        if (token.userId) {
+          session.user.id = token.userId as string
+        }
+        if (token.name) {
+          session.user.name = token.name as string
+        }
+        if (token.email) {
+          session.user.email = token.email as string
+        }
+        if (token.image) {
+          session.user.image = token.image as string
+        }
+        if (token.address) {
+          session.user.address = token.address as string
+          session.address = token.address as string
+        }
+        if (token.chainId) {
+          session.chainId = token.chainId as number
+        }
         if (token.wechatId) {
           session.user.wechatId = token.wechatId as string
         }
       }
+      logWithTimestamp('Callback session output for SIWE, token: ', session)
       return session
     },
   },

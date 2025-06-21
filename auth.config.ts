@@ -50,45 +50,45 @@ export const authConfig = {
     },
 
     // !!! BE CAREFUL return value of ths session() callback as they will be used by client(like metamask wallet) and middleware in callback authorized()
-    session({ session, token, user }) {
-      logWithTimestamp(
-        'Session Callback - Input:',
-        '\n\tsession:',
-        session,
-        '\n\ttoken:',
-        token,
-        '\n\tuser:',
-        user
-      )
-      try {
-        let newSession = session
-        if (token && token.sub) {
-          // 确保会话中包含完整的用户信息
-          const [, chainId, address] = token.sub.split(':')
-          // TODO::  better to validate chainId & address to distinguish SIWE with other providers using sub in token
-          if (chainId && address) {
-            const userInfo = {
-              ...session.user,
-              id: token.sub,
-              address: address,
-            }
+    // session({ session, token, user }) {
+    //   logWithTimestamp(
+    //     'Session Callback - Input:',
+    //     '\n\tsession:',
+    //     session,
+    //     '\n\ttoken:',
+    //     token,
+    //     '\n\tuser:',
+    //     user
+    //   )
+    //   try {
+    //     let newSession = session
+    //     if (token && token.sub) {
+    //       // 确保会话中包含完整的用户信息
+    //       const [, chainId, address] = token.sub.split(':')
+    //       // TODO::  better to validate chainId & address to distinguish SIWE with other providers using sub in token
+    //       if (chainId && address) {
+    //         const userInfo = {
+    //           ...session.user,
+    //           id: token.sub,
+    //           address: address,
+    //         }
 
-            newSession = {
-              ...newSession,
-              //user: userInfo as any, // 使用类型断言处理复杂的类型问题
-              // !! address && chainId is relevant in session returned to authorized() callback for validating sessions in middleware
-              address: address,
-              chainId: parseInt(chainId, 10),
-            }
-          }
-        }
-        logWithTimestamp('Session Callback - Output:\n\tSession:', newSession)
-        return newSession
-      } catch (error) {
-        logWithTimestamp('Session error:', error)
-        return session
-      }
-    },
+    //         newSession = {
+    //           ...newSession,
+    //           //user: userInfo as any, // 使用类型断言处理复杂的类型问题
+    //           // !! address && chainId is relevant in session returned to authorized() callback for validating sessions in middleware
+    //           address: address,
+    //           chainId: parseInt(chainId, 10),
+    //         }
+    //       }
+    //     }
+    //     logWithTimestamp('Session Callback - Output:\n\tSession:', newSession)
+    //     return newSession
+    //   } catch (error) {
+    //     logWithTimestamp('Session error:', error)
+    //     return session
+    //   }
+    // },
   },
   providers: [],
 } satisfies NextAuthConfig

@@ -7,6 +7,7 @@ export type User = {
   name: string
   email: string
   password: string
+  image?: string // added for profile images
   address?: string // added for siwe provider
   chainId?: number
   wechat_id?: string // WeChat unique identifier

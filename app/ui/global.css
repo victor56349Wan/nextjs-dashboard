@@ -2,6 +2,87 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Prevent hydration mismatch by adding touch-callout style globally */
+html,
+body,
+* {
+  -webkit-touch-callout: none;
+}
+
+/* WeChat browser specific styles to prevent hydration issues */
+div,
+main,
+section,
+article,
+nav,
+header,
+footer {
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Re-enable text selection for input fields and text content */
+input,
+textarea,
+p,
+span,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* WeChat browser specific styles */
+.wechat-browser,
+.wechat-browser *,
+.wechat-browser div,
+.wechat-browser main,
+.wechat-browser section {
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+.wechat-browser input,
+.wechat-browser textarea,
+.wechat-browser p,
+.wechat-browser span,
+.wechat-browser h1,
+.wechat-browser h2,
+.wechat-browser h3,
+.wechat-browser h4,
+.wechat-browser h5,
+.wechat-browser h6 {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
+/* Prevent Chrome autofill from causing hydration issues */
+form {
+  -webkit-autofill: none;
+}
+
+/* Hide Chrome's autofill styling */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  transition: background-color 5000s ease-in-out 0s;
+  -webkit-text-fill-color: inherit !important;
+}
+
+/* Prevent Chrome from adding unique IDs that cause hydration issues */
+input[type='email'],
+input[type='password'],
+input[type='text'] {
+  -webkit-autofill: none;
+}
+
 input[type='number'] {
   -moz-appearance: textfield;
   appearance: textfield;

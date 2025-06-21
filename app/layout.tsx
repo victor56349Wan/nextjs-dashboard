@@ -11,7 +11,7 @@ import { wagmiAdapter } from './config'
 import AppKitProvider from './context'
 import { MessageProvider } from './ui/message-provider'
 import { ToastProvider } from './ui/toast'
-
+import WeChatHydrationFix from './ui/wechat-hydration-fix'
 export const metadata: Metadata = {
   title: {
     template: '%s | Acme Dashboard by Victor Wan',
@@ -30,13 +30,16 @@ export default async function RootLayout({
   const cookie = headersList.get('cookie')
   const initialState = cookieToInitialState(wagmiAdapter.wagmiConfig, cookie)
   return (
-    <html lang="en">
-      <body className={`${inter.className} antialiased`}>
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={`${inter.className} antialiased`}
+        suppressHydrationWarning>
         <ToastProvider>
           <AppKitProvider initialState={initialState}>
             <MessageProvider>{children}</MessageProvider>
           </AppKitProvider>
         </ToastProvider>
+        <WeChatHydrationFix />
       </body>
     </html>
   )
